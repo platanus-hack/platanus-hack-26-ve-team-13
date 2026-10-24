@@ -3,7 +3,7 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   resolve: {
-    // Same "@/*" alias as tsconfig.json, so imports survive the move into /manito
+    // Mismo alias "@/*" que tsconfig.json, para que los imports sigan funcionando al mover todo a /manito
     alias: { "@": fileURLToPath(new URL(".", import.meta.url)) },
   },
   test: {

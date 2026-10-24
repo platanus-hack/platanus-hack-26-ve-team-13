@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { Assessment, ModelAssessment } from "@/lib/schema/assessment";
 import { Form, FormDraft } from "@/lib/schema/form";
 
-// José, the invented demo persona (PRD section 5)
+// José, la persona inventada de la demo (PRD sección 5)
 const jose = {
   intakeId: "3f1c2a7e-8b4d-4e6a-9c1f-2d5b7a9e0c13",
   name: "José Rodríguez",

@@ -10,6 +10,9 @@ appears.
   and have not been confirmed with Oli yet.
 - [ ] **Persistence:** `persistIntake()` in `lib/agent/persist.ts` is a mock that
   only logs. Needs Oli's endpoint or function, auth and response shape.
+- [ ] **Assessment schema differs from PRD section 9:** `pendingChecks[].kind`
+  adds `"tools"` (code asks about tools when the person never mentioned them).
+  Oli's dashboard must accept it.
 
 ## Dependencies to add to `/manito/package.json`
 

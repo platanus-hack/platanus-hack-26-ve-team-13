@@ -6,23 +6,23 @@ export const Form = z.object({
   intakeId: z.uuid(),
   name: z.string().min(1),
   idStatus: z.enum(["valid", "expired", "lost", "none"]),
-  idNumber: z.string().optional(),          // sensitive: restricted storage
+  idNumber: z.string().optional(),          // dato sensible: almacenamiento restringido
   birthDate: z.iso.date().optional(),
   phone: z.string().optional(),
-  // Not asked in the demo: optional so a demo record is valid
+  // No se preguntan en la demo: opcionales para que un registro de demo sea válido
   sector: z.enum(["ciudad_piar", "catia_la_mar", "la_lucha", "other"]).optional(),
   housing: z.enum(["shelter", "own_good", "own_damaged", "rented", "relative"]).optional(),
   education: z.enum(["none", "primary", "secondary", "technical", "university"]).optional(),
   courses: z.string().optional(),
   mobility: z.enum(["outside_ok", "only_la_guaira", "depends_transport"]).optional(),
-  trade: z.string().nullable(),             // null = no trade / wants to learn
+  trade: z.string().nullable(),             // null = sin oficio / quiere aprender uno
   yearsBand: YearsBand.optional(),
   otherSkills: z.array(z.string()).max(2).optional(),
-  tools: z.enum(["has", "lost", "never_had"]).optional(),   // optional: captured only if mentioned
+  tools: z.enum(["has", "lost", "never_had"]).optional(),   // opcional: solo se captura si la persona lo menciona
   seeking: z.enum(["employment", "own_business", "freelance"]).optional(),
 });
 
-// During the conversation every field is optional
+// Durante la conversación todos los campos son opcionales
 export const FormDraft = Form.partial();
 
 export type YearsBand = z.infer<typeof YearsBand>;

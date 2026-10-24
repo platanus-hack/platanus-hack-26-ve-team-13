@@ -1,4 +1,4 @@
-// Placeholder until phase 3 builds the demo UI.
+// Página provisional hasta que la fase 3 construya la interfaz de la demo.
 export default function DemoPage() {
   return (
     <main className="flex flex-1 items-center justify-center p-8">
