@@ -1,7 +1,15 @@
 // Estado de la conversación y lógica de etapas: register → validate → closing.
 // El código decide qué preguntar; Claude solo extrae datos y redacta el acuse.
 import { z } from "zod";
-import { GREETING, REGISTER_QUESTIONS, RETRY_PREFIX, closingLine, confirmLine } from "@/lib/agent/lines";
+import {
+  DISTRESS_REPLY,
+  GREETING,
+  OFF_SCRIPT_REPLY,
+  REGISTER_QUESTIONS,
+  RETRY_PREFIX,
+  closingLine,
+  confirmLine,
+} from "@/lib/agent/lines";
 import { normalizeDate, normalizeIdNumber, normalizeName, normalizePhone } from "@/lib/agent/normalize";
 import { buildQuestionPlan } from "@/lib/agent/plan";
 import { findTrade } from "@/lib/agent/trades";
@@ -31,6 +39,8 @@ export const TurnState = z.object({
   unconfirmed: z.array(ConfirmField),         // ya en el formulario, falta que la persona los confirme
   asking: AskKey.nullable(),                  // lo que preguntó la última frase de Manito
   askCounts: z.partialRecord(AskKey, z.number().int()),
+  offScriptTurns: z.number().int().default(0),  // preguntas o comentarios fuera del guion
+  needsHuman: z.boolean().default(false),       // mencionó peligro o una necesidad urgente
   history: z.array(Line),
 });
 export type TurnState = z.infer<typeof TurnState>;
@@ -50,6 +60,8 @@ type RegisterGroup = "nameBirth" | "id" | "phone" | "trade";
 const REGISTER_ORDER: RegisterGroup[] = ["nameBirth", "id", "phone", "trade"];
 const VALIDATE_KEYS = { 18: "q18", 19: "q19", 22: "q22" } as const;
 const MAX_ASKS = 2;
+// Veces que Manito responde algo fuera del guion antes de seguir como si no hubiera respuesta
+const MAX_OFF_SCRIPT = 2;
 const CONFIRM_GROUP: Record<ConfirmField, RegisterGroup> = {
   name: "nameBirth",
   birthDate: "nameBirth",
@@ -68,6 +80,8 @@ export function initialState(): TurnState {
     unconfirmed: [],
     asking: "nameBirth",
     askCounts: { nameBirth: 1 },
+    offScriptTurns: 0,
+    needsHuman: false,
     history: [{ speaker: "manito", text: `${GREETING} ${REGISTER_QUESTIONS.nameBirth.all}` }],
   };
 }
@@ -95,6 +109,15 @@ function missingFields(group: RegisterGroup, state: TurnState): DeclinableField[
 function registerQuestion(group: RegisterGroup, missing: DeclinableField[]): string {
   const q: Record<string, string> = REGISTER_QUESTIONS[group];
   return missing.length === 1 && q[missing[0]] ? q[missing[0]] : q.all;
+}
+
+// La pregunta que corresponde a `key` en este estado, para repetirla tal cual
+function questionFor(key: AskKey | null, state: TurnState): string {
+  if (key === "confirm") {
+    return confirmLine(Object.fromEntries(state.unconfirmed.map((f) => [f, state.form[f]])));
+  }
+  if (isRegisterGroup(key)) return registerQuestion(key, missingFields(key, state));
+  return buildQuestionPlan(state.form).questions.find((q) => VALIDATE_KEYS[q.id] === key)?.text ?? "";
 }
 
 // Pasa la extracción por los normalizadores y el esquema; descarta lo inválido
@@ -130,11 +153,35 @@ export async function runTurn(state: TurnState, userText: string, extract: Extra
   const extraction = await extract({ question: lastLine, answer: userText });
   const formPatch = extraction ? toFormPatch(extraction) : {};
 
+  // Fuera del guion: Manito responde con una frase fija, nunca improvisada
+  const offScript = extraction?.offScript ?? null;
+  const offScriptLine = offScript === "distress" ? DISTRESS_REPLY : offScript ? OFF_SCRIPT_REPLY : "";
+  const gaveData = Object.keys(formPatch).length > 0 ||
+    (extraction?.declined.length ?? 0) > 0 || extraction?.confirmed != null;
+
+  // Sin datos nuevos: se repite la misma pregunta y no cuenta como respuesta fallida
+  if (offScript && !gaveData && (offScript === "distress" || state.offScriptTurns < MAX_OFF_SCRIPT)) {
+    const reply = `${offScriptLine} ${questionFor(state.asking, state)}`;
+    const held: TurnState = {
+      ...state,
+      offScriptTurns: state.offScriptTurns + 1,
+      needsHuman: state.needsHuman || offScript === "distress",
+      history: [
+        ...state.history,
+        { speaker: "persona", text: userText },
+        { speaker: "manito", text: reply },
+      ],
+    };
+    return { reply, formPatch: {}, evidenceNotes: [], state: held, done: false };
+  }
+
   const next: TurnState = {
     ...state,
     form: { ...state.form, ...formPatch },
     skipped: [...new Set([...state.skipped, ...(extraction?.declined ?? [])])],
     askCounts: { ...state.askCounts },
+    offScriptTurns: state.offScriptTurns + (offScript ? 1 : 0),
+    needsHuman: state.needsHuman || offScript === "distress",
     history: [...state.history, { speaker: "persona", text: userText }],
   };
 
@@ -235,6 +282,13 @@ export async function runTurn(state: TurnState, userText: string, extract: Extra
       ack = "";
       nextLine = closingLine(next.form.name);
     }
+  }
+
+  // Si además dijo algo fuera del guion, la frase fija reemplaza el acuse,
+  // y no se dice "no te entendí" porque sí se entendió
+  if (offScript) {
+    ack = offScriptLine;
+    if (nextLine.startsWith(RETRY_PREFIX)) nextLine = nextLine.slice(RETRY_PREFIX.length).trimStart();
   }
 
   const reply = [ack, nextLine].filter(Boolean).join(" ");

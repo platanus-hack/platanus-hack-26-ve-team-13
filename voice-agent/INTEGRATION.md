@@ -13,6 +13,13 @@ appears.
 - [ ] **Assessment schema differs from PRD section 9:** `pendingChecks[].kind`
   adds `"tools"` (code asks about tools when the person never mentioned them).
   Oli's dashboard must accept it.
+- [ ] **`Assessment.needsHuman`** (boolean, not in PRD section 9): the person
+  mentioned danger or an urgent need during the conversation. The dashboard
+  should surface it above everything else so someone contacts them soon.
+  `/api/agent/assess` takes it as `needsHuman` in the request body (from
+  `TurnState.needsHuman`).
+- [ ] **Distress line** (`DISTRESS_REPLY` in `lib/agent/lines.ts`) is a draft:
+  Impaktemos must approve the wording and the emergency number.
 
 ## Dependencies to add to `/manito/package.json`
 

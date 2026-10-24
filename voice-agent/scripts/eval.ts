@@ -10,8 +10,11 @@ import type { FormDraft } from "@/lib/schema/form";
 
 type Fixture = {
   description: string;
-  answers: Record<string, string>;
+  // Una lista se usa en orden cada vez que Manito hace esa pregunta (la última se repite)
+  answers: Record<string, string | string[]>;
   expect: {
+    manitoSays?: string[];   // frases que Manito debe decir en algún momento
+    needsHuman?: boolean;
     form?: Record<string, unknown>;
     absent?: string[];
     absentOr?: Record<string, unknown>;
@@ -27,18 +30,23 @@ type Fixture = {
 };
 
 const FIXTURES = join(process.cwd(), "tests/fixtures");
-const MAX_TURNS = 14;
+const MAX_TURNS = 18;
 
 const turnMs: number[] = [];
 
 async function converse(f: Fixture): Promise<{ state: TurnState; done: boolean }> {
   let state = initialState();
+  const used: Record<string, number> = {};
   for (let i = 0; i < MAX_TURNS; i++) {
     const key = state.asking ?? "";
     const retry = (state.askCounts[state.asking ?? "nameBirth"] ?? 0) > 1;
     // Sin respuesta escrita para "¿Está bien?", la persona confirma
     const fallback = key === "confirm" ? "Sí, así es." : "No sé.";
-    const answer = (retry && f.answers[`${key}_retry`]) || f.answers[key] || fallback;
+    const listed = f.answers[key];
+    const n = used[key] = (used[key] ?? -1) + 1;
+    const answer = Array.isArray(listed)
+      ? listed[Math.min(n, listed.length - 1)]
+      : (retry && (f.answers[`${key}_retry`] as string)) || listed || fallback;
     const start = performance.now();
     const r = await runTurn(state, answer, extractTurn);
     turnMs.push(performance.now() - start);
@@ -56,13 +64,20 @@ async function runFixture(name: string, f: Fixture, verbose: boolean): Promise<s
   const { state, done } = await converse(f);
   const form: FormDraft = state.form;
   const modelAssessment = await assessConversation(form, state.history);
-  const a = buildAssessment({ form, history: state.history, modelAssessment, model: ASSESS_MODEL });
+  const a = buildAssessment({
+    form, history: state.history, modelAssessment, model: ASSESS_MODEL, needsHuman: state.needsHuman,
+  });
 
   if (verbose) {
     for (const l of state.history) console.log(`    ${l.speaker === "manito" ? "Manito " : "Persona"}: ${l.text}`);
   }
 
   check(done || e.done === false, "conversation did not reach closing");
+  const said = state.history.filter((l) => l.speaker === "manito").map((l) => l.text).join("\n");
+  for (const phrase of e.manitoSays ?? []) check(said.includes(phrase), `Manito never said: "${phrase}"`);
+  if (e.needsHuman !== undefined) {
+    check(a.needsHuman === e.needsHuman, `needsHuman: expected ${e.needsHuman}, got ${a.needsHuman}`);
+  }
   for (const [k, v] of Object.entries(e.form ?? {})) {
     const got = form[k as keyof FormDraft];
     check(JSON.stringify(got) === JSON.stringify(v), `form.${k}: expected ${JSON.stringify(v)}, got ${JSON.stringify(got)}`);

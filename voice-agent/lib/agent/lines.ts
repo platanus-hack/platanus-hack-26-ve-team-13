@@ -28,6 +28,14 @@ export const REGISTER_QUESTIONS = {
 // Se antepone cuando una respuesta no se entendió y se repite la pregunta
 export const RETRY_PREFIX = "Disculpa, no te entendí bien.";
 
+// Cuando la persona pregunta algo o se sale del tema. Manito no improvisa respuestas.
+export const OFF_SCRIPT_REPLY = "Buena pregunta. Eso te lo responde una persona del equipo cuando te contactemos.";
+
+// Cuando menciona peligro o una necesidad urgente. Se marca para que una persona la contacte.
+// BORRADOR: Impaktemos debe aprobar el texto y confirmar el número de emergencias.
+export const DISTRESS_REPLY =
+  "Lo siento mucho. Si tú o alguien está herido o en peligro, llama ya al 911. Voy a avisarle a una persona del equipo para que te contacte.";
+
 const MONTH_NAMES = [
   "enero", "febrero", "marzo", "abril", "mayo", "junio",
   "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",

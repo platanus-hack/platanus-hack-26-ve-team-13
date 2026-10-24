@@ -24,6 +24,7 @@
     "demonstratedLevel": ["expert"],
     "levelVsYears": ["matches"],
     "route": ["ready_with_support"],
-    "pendingKinds": ["reference"]
+    "pendingKinds": ["reference"],
+    "needsHuman": false
   }
 }

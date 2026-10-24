@@ -35,6 +35,7 @@ export function buildAssessment(input: {
   history: Line[];
   modelAssessment: ModelAssessment;
   model: string;
+  needsHuman?: boolean;
   now?: Date;
 }): Assessment {
   const { form, history, modelAssessment: m } = input;
@@ -52,6 +53,7 @@ export function buildAssessment(input: {
     levelVsYears: levelVsYears(demonstratedLevel, form.yearsBand),
     trust,
     route: deriveRoute(form, scores, trust),
+    needsHuman: input.needsHuman ?? false,
     model: input.model,
     assessedAt: (input.now ?? new Date()).toISOString(),
   };

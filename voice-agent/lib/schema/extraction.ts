@@ -19,6 +19,9 @@ export const Extraction = z.object({
   yearsBand: YearsBand.nullable(),
   tools: z.enum(["has", "lost", "never_had"]).nullable(),
   confirmed: z.boolean().nullable(),          // respuesta a "¿Está bien?"; null si no aplica o no se entiende
+  // "question": pregunta algo o se sale del tema en vez de responder;
+  // "distress": peligro o necesidad urgente ahora mismo. null si responde normal.
+  offScript: z.enum(["question", "distress"]).nullable(),
   declined: z.array(DeclinableField),
   evidenceNotes: z.array(z.string()).max(3),  // etiquetas cortas para el panel, no puntajes
 });

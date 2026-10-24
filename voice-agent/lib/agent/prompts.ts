@@ -3,8 +3,8 @@ import type { Line } from "@/lib/agent/stage";
 import { findTrade, TRADES } from "@/lib/agent/trades";
 import type { FormDraft } from "@/lib/schema/form";
 
-export const TURN_PROMPT_VERSION = "turn-v3";
-export const ASSESS_PROMPT_VERSION = "assess-v2";
+export const TURN_PROMPT_VERSION = "turn-v4";
+export const ASSESS_PROMPT_VERSION = "assess-v3";
 
 const tradeList = TRADES.map((t) => `- ${t.id}: ${t.label} (${t.aliases.slice(0, 4).join(", ")})`).join("\n");
 
@@ -25,6 +25,10 @@ ${tradeList}
 - yearsBand: cuánto tiempo lleva en el oficio. "lt1" menos de un año, "1to3" de 1 a 3 años, "3to10" de 3 a 10 años, "gt10" más de 10 años.
 - tools: solo si menciona sus herramientas de trabajo. "has" las tiene, "lost" las perdió, "never_had" nunca tuvo.
 - declined: los campos que la persona se niega explícitamente a dar.
+- offScript: null si la persona responde a lo que se le preguntó, aunque la respuesta sea corta, vaga o incompleta.
+  - "question": en vez de responder, hace una pregunta ("¿para qué quieren mi número?", "¿me van a dar trabajo?") o habla de otro tema.
+  - "distress": dice que alguien está herido o en peligro ahora mismo, que no tiene agua, comida o dónde dormir hoy, o expresa desesperación o ganas de hacerse daño. Mencionar lo que perdió en el terremoto (casa, herramientas, trabajo) como contexto NO es "distress".
+  Nunca respondas tú esas preguntas: Manito responde con una frase fija.
 - evidenceNotes: solo cuando responde sobre su oficio, de 0 a 3 etiquetas cortas en español sobre evidencia concreta que aparece en la respuesta, por ejemplo "nombra un cliente concreto", "usa vocabulario del oficio", "ofrece una referencia", "describe los pasos en orden". Nunca juicios sobre la persona.
 
 ## Acuse (ack)
@@ -58,7 +62,7 @@ Según lo que mostró en la conversación, sin importar los años que declaró:
 - "not_assessed": no se probó el conocimiento del oficio (por ejemplo, si no tiene oficio).
 
 ## Resto de campos
-- observations: de 1 a 3 frases en español, factuales y respetuosas, escritas para una coordinadora de Impaktemos, nunca para un empleador. Ejemplo: "Explica el friso de una pared con detalle; declara más de 10 años y el nivel lo confirma."
+- observations: de 1 a 3 frases en español, factuales y respetuosas, escritas para una coordinadora de Impaktemos, nunca para un empleador. Sin datos personales: nunca incluyas números de cédula o de teléfono ni fechas de nacimiento. Ejemplo: "Explica el friso de una pared con detalle; declara más de 10 años y el nivel lo confirma."
 - toolsNeeded: las herramientas del oficio que la persona dijo haber perdido o no tener, en español.
 - pendingChecks: lo que alguien debe verificar después. "reference" por cada persona que ofreció como referencia (en detail: nombre y lugar); "photo" si ofreció fotos; "rif" si mencionó un RIF.
 

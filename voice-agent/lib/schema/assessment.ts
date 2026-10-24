@@ -26,6 +26,7 @@ export const Assessment = ModelAssessment.extend({  // lo que agrega el código
   levelVsYears: z.enum(["matches", "below", "above", "not_assessed"]),
   trust: z.enum(["declared", "probed", "with_reference", "verified"]),
   route: z.enum(["human_review", "training", "ready_with_support", "ready_to_match"]),
+  needsHuman: z.boolean().default(false),   // mencionó peligro o una necesidad urgente: contactar ya
   model: z.string(),
   assessedAt: z.iso.datetime(),
 });

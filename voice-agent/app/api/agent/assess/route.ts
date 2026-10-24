@@ -9,6 +9,7 @@ import { Form, FormDraft } from "@/lib/schema/form";
 const AssessRequest = z.object({
   form: FormDraft,
   history: z.array(Line).min(1),
+  needsHuman: z.boolean().default(false),   // TurnState.needsHuman
 });
 
 export async function POST(request: Request) {
@@ -16,12 +17,12 @@ export async function POST(request: Request) {
   if (!body.success) {
     return Response.json({ error: z.prettifyError(body.error) }, { status: 400 });
   }
-  const { form, history } = body.data;
+  const { form, history, needsHuman } = body.data;
 
   let assessment;
   try {
     const modelAssessment = await assessConversation(form, history);
-    assessment = buildAssessment({ form, history, modelAssessment, model: ASSESS_MODEL });
+    assessment = buildAssessment({ form, history, modelAssessment, model: ASSESS_MODEL, needsHuman });
   } catch (error) {
     console.error("[assess]", error);
     return Response.json({ error: "assessment_failed" }, { status: 502 });

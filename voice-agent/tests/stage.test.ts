@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { DISTRESS_REPLY, OFF_SCRIPT_REPLY, RETRY_PREFIX } from "@/lib/agent/lines";
 import { initialState, runTurn, toFormPatch, type Extractor, type TurnState } from "@/lib/agent/stage";
 import type { Extraction } from "@/lib/schema/extraction";
 
@@ -14,6 +15,7 @@ const empty: Extraction = {
   yearsBand: null,
   tools: null,
   confirmed: null,
+  offScript: null,
   declined: [],
   evidenceNotes: [],
 };
@@ -234,5 +236,62 @@ describe("runTurn: reading data back", () => {
     expect(replies[1]).toBe("Disculpa, no te entendí bien. ¿Me repites el número de cédula?");
     expect(replies[2]).toBe("Para confirmar: cédula V-15.234.867. ¿Está bien?");
     expect(state.form.idStatus).toBe("valid");
+  });
+});
+
+describe("runTurn: off-script answers", () => {
+  const phoneQ = "¿A qué número te escribimos por WhatsApp?";
+
+  // Estado en el que Manito acaba de preguntar el teléfono
+  async function atPhone() {
+    const extract = scripted(
+      { name: "Ana Pérez", birthDate: "1 de enero de 1990" },
+      { confirmed: true },
+      { idStatus: "none" },
+    );
+    const { state, replies } = await play(extract, ["a", "sí", "no tengo"]);
+    expect(replies.at(-1)).toContain(phoneQ);
+    return state;
+  }
+
+  it("a question back gets the fixed line and the same question, without counting as a failure", async () => {
+    const start = await atPhone();
+    const { state, replies } = await play(scripted({ offScript: "question" }), ["¿para qué quieren mi número?"], start);
+    expect(replies[0]).toBe(`${OFF_SCRIPT_REPLY} ${phoneQ}`);
+    expect(replies[0]).not.toContain(RETRY_PREFIX);
+    expect(state.askCounts.phone).toBe(start.askCounts.phone);
+    expect(state.offScriptTurns).toBe(1);
+    expect(state.needsHuman).toBe(false);
+  });
+
+  it("after two off-script turns, a third counts as an unanswered question", async () => {
+    const start = await atPhone();
+    const { state, replies } = await play(
+      scripted({ offScript: "question" }, { offScript: "question" }, { offScript: "question" }),
+      ["¿?", "¿?", "¿?"],
+      start,
+    );
+    expect(replies[2]).toBe(`${OFF_SCRIPT_REPLY} ${phoneQ}`);
+    expect(state.askCounts.phone).toBe((start.askCounts.phone ?? 0) + 1);
+    expect(replies.join(" ")).not.toContain(RETRY_PREFIX);
+  });
+
+  it("distress gets the safety line and flags the person, always", async () => {
+    const start = { ...(await atPhone()), offScriptTurns: 5 };
+    const { state, replies } = await play(scripted({ offScript: "distress" }), ["mi hijo está herido"], start);
+    expect(replies[0]).toBe(`${DISTRESS_REPLY} ${phoneQ}`);
+    expect(state.needsHuman).toBe(true);
+  });
+
+  it("off-script plus data: the fixed line replaces the ack and the flow continues", async () => {
+    const start = await atPhone();
+    const { state, replies } = await play(
+      scripted({ ack: "Listo.", offScript: "question", phone: "0412-555-1234" }),
+      ["0412-555-1234, ¿para qué lo quieren?"],
+      start,
+    );
+    expect(state.form.phone).toBe("04125551234");
+    expect(replies[0].startsWith(OFF_SCRIPT_REPLY)).toBe(true);
+    expect(replies[0]).not.toContain("Listo.");
   });
 });
