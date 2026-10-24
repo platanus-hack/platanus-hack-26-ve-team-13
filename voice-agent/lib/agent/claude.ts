@@ -24,6 +24,10 @@ export const extractTurn: Extractor = async ({ question, answer }) => {
       output_config: { effort: "low", format: zodOutputFormat(Extraction) },
       system: TURN_SYSTEM,
       messages: [{ role: "user", content: turnUserMessage(question, answer) }],
+    }, {
+      // En voz no se puede esperar: si tarda, el turno sigue sin datos y repite la pregunta
+      timeout: 4000,
+      maxRetries: 1,
     });
     if (response.stop_reason === "refusal") {
       console.warn("[extractTurn] refusal", response.stop_details?.category);

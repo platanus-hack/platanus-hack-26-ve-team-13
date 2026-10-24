@@ -15,13 +15,6 @@ said is the short quotes inside the assessment scores.
 - Lets a coordinator check a score against what was actually said, and lets us
   re-run evaluations when the prompts change.
 
-## Check how the voice reads numbers back
-
-Manito reads back data for a yes/no check (`confirmLine` in `lib/agent/lines.ts`),
-written as "cédula V-15.234.876" and "teléfono 0412-555-1234". Listen to how
-ElevenLabs says them; if it reads the phone as one big number, spell the digits
-out in the text instead.
-
 ## Generate questions for trades outside the bank
 
 When `findTrade()` finds nothing, `buildQuestionPlan()` (`lib/agent/plan.ts`) asks

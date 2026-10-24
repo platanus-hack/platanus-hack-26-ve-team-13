@@ -72,6 +72,9 @@ const CONFIRM_GROUP: Record<ConfirmField, RegisterGroup> = {
 const isRegisterGroup = (k: AskKey | null): k is RegisterGroup =>
   REGISTER_ORDER.includes(k as RegisterGroup);
 
+// Primera frase de Manito; la página la genera en audio antes de empezar
+export const OPENING_LINE = `${GREETING} ${REGISTER_QUESTIONS.nameBirth.all}`;
+
 export function initialState(): TurnState {
   return {
     stage: "register",
@@ -82,7 +85,7 @@ export function initialState(): TurnState {
     askCounts: { nameBirth: 1 },
     offScriptTurns: 0,
     needsHuman: false,
-    history: [{ speaker: "manito", text: `${GREETING} ${REGISTER_QUESTIONS.nameBirth.all}` }],
+    history: [{ speaker: "manito", text: OPENING_LINE }],
   };
 }
 
