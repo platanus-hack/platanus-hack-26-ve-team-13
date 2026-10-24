@@ -1,0 +1,29 @@
+{
+  "description": "José, demo script (PRD section 5)",
+  "answers": {
+    "nameBirth": "José Rodríguez, nací el 3 de marzo de 1980.",
+    "id": "Sí, vigente. V-15.234.876.",
+    "phone": "Al 0412-555-1234.",
+    "trade": "Soy albañil, hace más de diez años. Perdí mis herramientas en el terremoto.",
+    "q18": "Mojo la pared, pongo las maestras con el nivel, preparo la mezcla de cemento y arena, la lanzo con la cuchara, emparejo con la regla y termino con la llana.",
+    "q19": "Le agrego cemento y arena en la misma proporción, porque si no, el friso se raja.",
+    "q22": "Sí, la señora Carmen, en Catia La Mar. Le frisé la casa el año pasado. Te paso su número."
+  },
+  "expect": {
+    "form": {
+      "name": "José Rodríguez",
+      "birthDate": "1980-03-03",
+      "idStatus": "valid",
+      "idNumber": "V-15234876",
+      "phone": "04125551234",
+      "trade": "masonry",
+      "yearsBand": "gt10",
+      "tools": "lost"
+    },
+    "trust": ["with_reference"],
+    "demonstratedLevel": ["expert"],
+    "levelVsYears": ["matches"],
+    "route": ["ready_with_support"],
+    "pendingKinds": ["reference"]
+  }
+}

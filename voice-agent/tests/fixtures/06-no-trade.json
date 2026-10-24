@@ -1,0 +1,15 @@
+{
+  "description": "No trade, wants to learn one",
+  "answers": {
+    "nameBirth": "Yorman Silva, nací el 9 de noviembre de 2004.",
+    "id": "Sí, vigente. V-30.222.333.",
+    "phone": "0426-555-0099.",
+    "trade": "No tenía un oficio, estaba estudiando. Me gustaría aprender uno."
+  },
+  "expect": {
+    "form": { "trade": null },
+    "demonstratedLevel": ["not_assessed"],
+    "route": ["training"],
+    "done": true
+  }
+}

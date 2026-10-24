@@ -1,0 +1,18 @@
+{
+  "description": "Nervous person, very short answers: low scores with honest reasons, observations don't judge character",
+  "answers": {
+    "nameBirth": "Jesús Pérez. El 5 de mayo de 1985.",
+    "id": "Sí. Vigente.",
+    "phone": "0416 555 9876.",
+    "trade": "Albañil. Como doce años.",
+    "q18": "Mojo... y frisó. Eso.",
+    "q19": "No sé.",
+    "q22": "No."
+  },
+  "expect": {
+    "form": { "trade": "masonry", "yearsBand": "gt10" },
+    "maxScore": { "knowledge": 1 },
+    "route": ["human_review"],
+    "bannedInObservations": ["nervios", "miente", "mentir", "honest", "sincer", "flojo", "insegur", "actitud"]
+  }
+}

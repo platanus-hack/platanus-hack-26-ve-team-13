@@ -24,7 +24,15 @@ appears.
 | `tsx` | devDependency | ^4.23.15 |
 
 Scripts to add: `test` (`vitest run`), `test:watch` (`vitest`), and `eval`
-(added in phase 2).
+(`node --env-file=.env.local --import tsx scripts/eval.ts`; calls Claude).
+
+## Claude API usage
+
+- `claude-haiku-5-5` per turn (`lib/agent/claude.ts`), `claude-sonnet-5-5` for
+  the assessment.
+- The assessment uses the beta `server-side-fallback-2026-07-01` with
+  `fallbacks: "default"` (if a safety classifier declines, the server retries
+  on another model). Keep the beta header when moving the code.
 
 ## Environment variables
 
@@ -44,4 +52,8 @@ Scripts to add: `test` (`vitest run`), `test:watch` (`vitest`), and `eval`
 ## Routes to move
 
 - `app/demo` → `/manito/app/demo`
-- `app/api/agent/*` → `/manito/app/api/agent/*` (from phase 2)
+- `app/api/agent/turn` and `app/api/agent/assess` → `/manito/app/api/agent/*`.
+  Both are `POST`, so they are never cached under `cacheComponents`; no
+  route config needed.
+- `lib/schema/extraction.ts` is internal to the agent (what Claude returns per
+  turn); it doesn't need to match anything on Oli's side.

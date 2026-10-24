@@ -1,0 +1,19 @@
+{
+  "description": "Seamstress, 1–3 years, good basic steps, no reference, has tools and valid ID",
+  "answers": {
+    "nameBirth": "Carmen Rivas, el 2 de febrero de 1998.",
+    "id": "Sí, vigente. V-26.111.222.",
+    "phone": "0414-555-2211.",
+    "trade": "Costurera, tengo como dos años cosiendo. Mi máquina se salvó, gracias a Dios.",
+    "q18": "Le pido a la persona que se ponga el pantalón y marco el largo con tiza. Después corto dejando unos tres centímetros para el doblez, lo plancho y lo coso a máquina.",
+    "q19": "Mido desde el piso con la cinta métrica en varios puntos alrededor y pongo alfileres antes de cortar.",
+    "q22": "No, ahorita no tengo a nadie a quien preguntarle."
+  },
+  "expect": {
+    "form": { "trade": "sewing", "yearsBand": "1to3", "tools": "has", "idStatus": "valid" },
+    "trust": ["probed"],
+    "demonstratedLevel": ["basic", "intermediate"],
+    "levelVsYears": ["matches"],
+    "route": ["ready_to_match"]
+  }
+}
