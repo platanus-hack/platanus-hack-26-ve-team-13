@@ -1,0 +1,1 @@
+export type DisponibilidadLaboral = 'completa' | 'solo_local' | 'depende_transporte';
