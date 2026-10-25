@@ -128,6 +128,7 @@ export function toFormPatch(x: Extraction): FormDraft {
   const trade = x.trade?.trim();
   const raw: Record<string, unknown> = {
     name: x.name && normalizeName(x.name),
+    lastNames: x.name && x.lastNames && normalizeName(x.lastNames),   // solo junto con name, para que coincidan
     birthDate: x.birthDate && normalizeDate(x.birthDate),
     idStatus: x.idStatus,
     idNumber: x.idNumber && normalizeIdNumber(x.idNumber),

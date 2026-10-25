@@ -3,7 +3,7 @@ import type { Line } from "@/lib/agent/stage";
 import { findTrade, TRADES } from "@/lib/agent/trades";
 import type { FormDraft } from "@/lib/schema/form";
 
-export const TURN_PROMPT_VERSION = "turn-v5";
+export const TURN_PROMPT_VERSION = "turn-v6";
 export const ASSESS_PROMPT_VERSION = "assess-v3";
 
 const tradeList = TRADES.map((t) => `- ${t.id}: ${t.label} (${t.aliases.slice(0, 4).join(", ")})`).join("\n");
@@ -15,6 +15,7 @@ Es una conversación de voz y la latencia importa: responde de inmediato.
 ## Extracción
 Extrae solo lo que la persona dijo en esta respuesta. Nunca completes un campo por contexto ni por suposición. Si un dato no aparece, déjalo en null.
 - name: nombre y apellido, tal como los dijo.
+- lastNames: solo si das name: la parte de name que son apellidos, copiada tal cual (por ejemplo, "José Luis Rodríguez Pérez" → "Rodríguez Pérez"; "María José Pérez" → "Pérez"). null si solo dijo su nombre de pila.
 - birthDate: tu mejor interpretación de la fecha de nacimiento en formato AAAA-MM-DD, aunque la diga de forma poco común (por ejemplo, "el 3 de marzo del 80" → "1980-03-03"). Si no dice el día o el mes, cópiala tal como la dijo; nunca inventes partes que falten. Manito se la lee de vuelta para confirmarla.
 - idStatus: "valid" si tiene cédula vigente o dice que sí tiene; "expired" si está vencida; "lost" si la perdió; "none" si no tiene.
 - La respuesta viene de reconocimiento de voz: en la cédula puede aparecer "B" en vez de "V" (suenan igual); la letra es V para venezolanos o E para extranjeros.

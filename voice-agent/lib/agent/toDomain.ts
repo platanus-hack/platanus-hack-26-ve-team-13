@@ -90,10 +90,15 @@ const VERIFICACION: Record<Assessment["pendingChecks"][number]["kind"], IEvaluac
   reference: "referencia", photo: "foto", rif: "rif", tools: "herramientas",
 };
 
-// "José Rodríguez" → José / Rodríguez; "José Luis Rodríguez Pérez" → José Luis / Rodríguez Pérez.
-// Provisorio: con 3 palabras se asume un nombre y dos apellidos.
-export function splitName(name: string): { nombres: string; apellidos: string } {
-  const words = name.trim().split(/\s+/);
+// Usa los apellidos que separó Claude si coinciden con el final del nombre. Si no,
+// adivina por cantidad de palabras: con 3 se asume un nombre y dos apellidos.
+export function splitName(name: string, lastNames?: string): { nombres: string; apellidos: string } {
+  const full = name.trim();
+  const last = lastNames?.trim();
+  if (last && full.length > last.length && full.endsWith(` ${last}`)) {
+    return { nombres: full.slice(0, -last.length).trim(), apellidos: last };
+  }
+  const words = full.split(/\s+/);
   if (words.length === 1) return { nombres: words[0], apellidos: "" };
   const cut = words.length >= 4 ? 2 : 1;
   return { nombres: words.slice(0, cut).join(" "), apellidos: words.slice(cut).join(" ") };
@@ -107,7 +112,7 @@ export function toPersona(form: Form): IPersona {
   const refugio = form.housing === "shelter" && form.sector ? (REFUGIO[form.sector] ?? null) : null;
   return {
     id: form.intakeId,
-    ...splitName(form.name),
+    ...splitName(form.name, form.lastNames),
     estado_cedula: ESTADO_CEDULA[form.idStatus],
     numero_cedula: form.idNumber ?? null,
     fecha_nacimiento: form.birthDate ? new Date(`${form.birthDate}T00:00:00Z`) : SIN_DATO.fecha_nacimiento,

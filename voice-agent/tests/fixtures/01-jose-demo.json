@@ -12,6 +12,7 @@
   "expect": {
     "form": {
       "name": "José Rodríguez",
+      "lastNames": "Rodríguez",
       "birthDate": "1980-03-03",
       "idStatus": "valid",
       "idNumber": "V-15234876",

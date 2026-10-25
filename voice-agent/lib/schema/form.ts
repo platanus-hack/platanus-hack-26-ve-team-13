@@ -5,6 +5,7 @@ export const YearsBand = z.enum(["lt1", "1to3", "3to10", "gt10"]);
 export const Form = z.object({
   intakeId: z.uuid(),
   name: z.string().min(1),
+  lastNames: z.string().optional(),          // apellidos dentro de `name`, para separar nombres y apellidos al guardar
   idStatus: z.enum(["valid", "expired", "lost", "none"]),
   idNumber: z.string().optional(),          // dato sensible: almacenamiento restringido
   birthDate: z.iso.date().optional(),

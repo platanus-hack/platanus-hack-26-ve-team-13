@@ -6,6 +6,7 @@ import type { Extraction } from "@/lib/schema/extraction";
 const empty: Extraction = {
   ack: "",
   name: null,
+  lastNames: null,
   birthDate: null,
   idStatus: null,
   idNumber: null,
@@ -42,7 +43,8 @@ describe("toFormPatch", () => {
   it("normalizes formats and maps the trade to its id", () => {
     const patch = toFormPatch({
       ...empty,
-      name: "José Rodríguez",
+      name: "José  Rodríguez",
+      lastNames: "Rodríguez",
       birthDate: "3 de marzo de 1980",
       idStatus: "valid",
       idNumber: "V-15.234.876",
@@ -53,6 +55,7 @@ describe("toFormPatch", () => {
     });
     expect(patch).toEqual({
       name: "José Rodríguez",
+      lastNames: "Rodríguez",
       birthDate: "1980-03-03",
       idStatus: "valid",
       idNumber: "V-15234876",
@@ -65,6 +68,10 @@ describe("toFormPatch", () => {
 
   it("drops what can't be normalized", () => {
     expect(toFormPatch({ ...empty, birthDate: "en el 80, en marzo", phone: "el de siempre" })).toEqual({});
+  });
+
+  it("keeps lastNames only together with name", () => {
+    expect(toFormPatch({ ...empty, lastNames: "Rodríguez" })).toEqual({});
   });
 
   it("noTrade → trade null", () => {

@@ -12,6 +12,7 @@
   "expect": {
     "form": {
       "name": "María Fernández",
+      "lastNames": "Fernández",
       "birthDate": "1990-07-15",
       "idStatus": "valid",
       "idNumber": "V-20456789",

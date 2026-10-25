@@ -38,6 +38,16 @@ const assessment: Assessment = {
 };
 
 describe("splitName", () => {
+  it("uses Claude's lastNames when they match the end of the name", () => {
+    expect(splitName("María José Pérez", "Pérez")).toEqual({ nombres: "María José", apellidos: "Pérez" });
+    expect(splitName("José Luis Rodríguez Pérez", "Rodríguez Pérez")).toEqual({ nombres: "José Luis", apellidos: "Rodríguez Pérez" });
+  });
+
+  it("falls back to word count when lastNames don't match or are the whole name", () => {
+    expect(splitName("María José Pérez", "Gómez")).toEqual({ nombres: "María", apellidos: "José Pérez" });
+    expect(splitName("Pérez", "Pérez")).toEqual({ nombres: "Pérez", apellidos: "" });
+  });
+
   it("splits by word count", () => {
     expect(splitName("José Rodríguez")).toEqual({ nombres: "José", apellidos: "Rodríguez" });
     expect(splitName("José Rodríguez Pérez")).toEqual({ nombres: "José", apellidos: "Rodríguez Pérez" });

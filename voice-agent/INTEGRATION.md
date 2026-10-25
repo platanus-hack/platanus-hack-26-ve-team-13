@@ -28,9 +28,10 @@ Spanish.** `intakeId` becomes `Persona.id` and `Perfil.persona_id`.
   `negocio_propio.tuvo_negocio` false, `referencias[].relacion` /
   `tiempo_experiencia` / `tiene_herramientas` `"sin_dato"`. Replace once Oli
   makes these optional.
-- [ ] **Name split** is a heuristic (`splitName`): 1–3 words → first word is
-  `nombres`; 4+ → first two. Better: have Claude extract names and surnames
-  separately.
+- [x] **Name split:** Claude returns `lastNames` (the surname part of `name`,
+  stored on the form). `splitName` uses it when it matches the end of `name`;
+  otherwise it falls back to word count (1–3 words → first word is `nombres`,
+  4+ → first two).
 - [ ] **`oficio_principal`** strings: `nombre` is the trade bank's Spanish label
   (`albañil`) or what the person said, `sin_oficio` when there is no trade;
   `tiempo_experiencia` `menos_de_1`/`1_a_3`/`3_a_10`/`mas_de_10`;

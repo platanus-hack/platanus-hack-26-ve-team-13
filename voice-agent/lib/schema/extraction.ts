@@ -10,6 +10,7 @@ export const DeclinableField = z.enum(["name", "birthDate", "idStatus", "idNumbe
 export const Extraction = z.object({
   ack: z.string(),                            // acuse breve antes de la siguiente pregunta; puede ser ""
   name: z.string().nullable(),
+  lastNames: z.string().nullable(),           // la parte de `name` que son apellidos
   birthDate: z.string().nullable(),
   idStatus: Form.shape.idStatus.nullable(),
   idNumber: z.string().nullable(),
