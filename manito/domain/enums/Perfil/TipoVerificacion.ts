@@ -1,1 +1,1 @@
-export type TipoVerificacion = 'referencia' | 'foto' | 'rif' | 'herramientas';
+export type TipoVerificacion = 'referencia' | 'foto' | 'rif' | 'herramientas' | 'registro';

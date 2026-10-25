@@ -20,6 +20,7 @@ import type { Form } from "@/lib/schema/form";
 // Provisorios hasta acordar con Oli si pasan a ser opcionales (ver INTEGRATION.md).
 export const SIN_DATO = {
   fecha_nacimiento: new Date("1900-01-01T00:00:00Z"),   // fecha centinela: no la dio
+  estado_cedula: "no_tiene" as EstadoCedula,
   estado_vivienda: "refugio" as EstadoVivienda,
   nivel_estudio: "primaria" as NivelEstudio,
   disponibilidad_laboral: "solo_local" as DisponibilidadLaboral,
@@ -27,7 +28,7 @@ export const SIN_DATO = {
   texto: "sin_dato",
 };
 
-const ESTADO_CEDULA: Record<Form["idStatus"], EstadoCedula> = {
+const ESTADO_CEDULA: Record<NonNullable<Form["idStatus"]>, EstadoCedula> = {
   valid: "vigente", expired: "vencida", lost: "perdida", none: "no_tiene",
 };
 
@@ -87,7 +88,7 @@ const RUTA: Record<Assessment["route"], IEvaluacionDetallada["ruta"]> = {
 };
 
 const VERIFICACION: Record<Assessment["pendingChecks"][number]["kind"], IEvaluacionDetallada["verificaciones_pendientes"][number]["tipo"]> = {
-  reference: "referencia", photo: "foto", rif: "rif", tools: "herramientas",
+  reference: "referencia", photo: "foto", rif: "rif", tools: "herramientas", registration: "registro",
 };
 
 // Usa los apellidos que separó Claude si coinciden con el final del nombre. Si no,
@@ -104,16 +105,18 @@ export function splitName(name: string, lastNames?: string): { nombres: string; 
   return { nombres: words.slice(0, cut).join(" "), apellidos: words.slice(cut).join(" ") };
 }
 
-const puntaje = (s: Assessment["scores"]["specificity"]): IPuntaje => ({
-  puntaje: s.score, citas: s.quotes, razon: s.reason,
-});
+type Score = NonNullable<Assessment["scores"]>["specificity"];
+const puntaje = (s: Score): IPuntaje => ({ puntaje: s.score, citas: s.quotes, razon: s.reason });
+
+// Sin puntajes (demo corta) Oli igual exige `puntajes`: va 0 con esta razón (ver INTEGRATION.md)
+const NO_EVALUADO: Score = { score: 0, quotes: [], reason: "No evaluado: no se preguntó por el oficio" };
 
 export function toPersona(form: Form): IPersona {
   const refugio = form.housing === "shelter" && form.sector ? (REFUGIO[form.sector] ?? null) : null;
   return {
     id: form.intakeId,
     ...splitName(form.name, form.lastNames),
-    estado_cedula: ESTADO_CEDULA[form.idStatus],
+    estado_cedula: form.idStatus ? ESTADO_CEDULA[form.idStatus] : SIN_DATO.estado_cedula,
     numero_cedula: form.idNumber ?? null,
     fecha_nacimiento: form.birthDate ? new Date(`${form.birthDate}T00:00:00Z`) : SIN_DATO.fecha_nacimiento,
     telefono: form.phone ?? null,
@@ -127,7 +130,8 @@ export function toPersona(form: Form): IPersona {
 }
 
 export function toPerfil(form: Form, assessment: Assessment, now = new Date()): IPerfil {
-  const { scores } = assessment;
+  const scores = assessment.scores;
+  const s = scores ?? { specificity: NO_EVALUADO, knowledge: NO_EVALUADO, coherence: NO_EVALUADO, externalEvidence: NO_EVALUADO };
   const referencias: IReferencia[] = assessment.pendingChecks
     .filter((c) => c.kind === "reference")
     .map((c) => ({ nombre: c.detail, relacion: SIN_DATO.texto, verificada: false, detalle: c.detail }));
@@ -146,7 +150,8 @@ export function toPerfil(form: Form, assessment: Assessment, now = new Date()): 
     negocio_propio: { tuvo_negocio: false },
     referencias,
     validacion_tecnica_ia: {
-      resumen_validacion: {
+      // Sin puntajes no hay puntuación global: se omite el resumen
+      resumen_validacion: scores && {
         nivel_certeza_oficio: CERTEZA[assessment.trust],
         puntuacion_global: scores.specificity.score + scores.knowledge.score
           + scores.coherence.score + scores.externalEvidence.score,   // 0-12
@@ -154,10 +159,10 @@ export function toPerfil(form: Form, assessment: Assessment, now = new Date()): 
       },
       evaluacion_detallada: {
         puntajes: {
-          especificidad: puntaje(scores.specificity),
-          conocimiento_practico: puntaje(scores.knowledge),
-          coherencia: puntaje(scores.coherence),
-          evidencia_externa: puntaje(scores.externalEvidence),
+          especificidad: puntaje(s.specificity),
+          conocimiento_practico: puntaje(s.knowledge),
+          coherencia: puntaje(s.coherence),
+          evidencia_externa: puntaje(s.externalEvidence),
         },
         nivel_demostrado: NIVEL[assessment.demonstratedLevel],
         nivel_vs_experiencia: NIVEL_VS[assessment.levelVsYears],

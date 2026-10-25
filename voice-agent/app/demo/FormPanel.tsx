@@ -1,14 +1,14 @@
 // Formulario que se va llenando en vivo durante la conversación
-import type { TurnState } from "@/lib/agent/stage";
+import type { Flow, TurnState } from "@/lib/agent/stage";
 import type { FormDraft } from "@/lib/schema/form";
-import { FORM_FIELDS, formValue } from "./labels";
+import { formFields, formValue } from "./labels";
 
-export function FormPanel({ state, justFilled }: { state: TurnState | null; justFilled: Set<keyof FormDraft> }) {
+export function FormPanel({ state, flow, justFilled }: { state: TurnState | null; flow: Flow; justFilled: Set<keyof FormDraft> }) {
   return (
     <section className="rounded-2xl border border-black/10 p-4 dark:border-white/15">
       <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide opacity-60">Formulario</h2>
       <dl className="space-y-2">
-        {FORM_FIELDS.map(([field, label]) => {
+        {formFields(flow).map(([field, label]) => {
           const value = state ? formValue(field, state.form) : null;
           const unconfirmed = state?.unconfirmed.includes(field as never);
           const skipped = state?.skipped.includes(field as never);

@@ -1,15 +1,16 @@
 // Evaluación final y entrega a persistIntake()
 import { z } from "zod";
-import { buildAssessment } from "@/lib/agent/assess";
+import { buildAssessment, buildUnscoredAssessment } from "@/lib/agent/assess";
 import { ASSESS_MODEL, assessConversation } from "@/lib/agent/claude";
 import { persistIntake } from "@/lib/agent/persist";
-import { Line } from "@/lib/agent/stage";
+import { Flow, Line } from "@/lib/agent/stage";
 import { Form, FormDraft } from "@/lib/schema/form";
 
 const AssessRequest = z.object({
   form: FormDraft,
   history: z.array(Line).min(1),
   needsHuman: z.boolean().default(false),   // TurnState.needsHuman
+  flow: Flow.default("full"),               // TurnState.flow
 });
 
 export async function POST(request: Request) {
@@ -17,10 +18,13 @@ export async function POST(request: Request) {
   if (!body.success) {
     return Response.json({ error: z.prettifyError(body.error) }, { status: 400 });
   }
-  const { form, history, needsHuman } = body.data;
+  const { form, history, needsHuman, flow } = body.data;
 
   let assessment;
-  try {
+  if (flow === "short") {
+    // La demo corta no pregunta por el oficio: no hay nada que evaluar con el modelo
+    assessment = buildUnscoredAssessment({ form, needsHuman });
+  } else try {
     const modelAssessment = await assessConversation(form, history);
     assessment = buildAssessment({ form, history, modelAssessment, model: ASSESS_MODEL, needsHuman });
   } catch (error) {

@@ -1,0 +1,44 @@
+{
+  "description": "Daniela, clinic receptionist >10 years, short demo flow (name + trade), tools not mentioned (demo persona)",
+  "flow": "short",
+  "answers": {
+    "name": "Daniela Pérez.",
+    "trade": "Era recepcionista en una clínica en Catia La Mar, hace más de diez años. La clínica se cayó con el terremoto.",
+    "q18": "La saludo y le pregunto si tiene cita. La busco en la agenda, le pido la cédula y verifico sus datos en el sistema; si viene por el seguro, le pido la carta aval. Le aviso al doctor por la extensión y le indico dónde esperar. Si el doctor se retrasa, le aviso al paciente cuánto falta.",
+    "q19": "Lo escucho sin interrumpirlo y le hablo con calma. Reviso la agenda: si hay un cupo antes, lo reubico, y si no, le ofrezco otra cita o llamo a la coordinadora. Nunca discuto con nadie en la sala de espera.",
+    "q22": "Sí, la doctora Rosa Martínez, que era la directora de la clínica. Te paso su número."
+  },
+  "expect": {
+    "form": {
+      "name": "Daniela Pérez",
+      "lastNames": "Pérez",
+      "trade": "reception",
+      "yearsBand": "gt10"
+    },
+    "absent": [
+      "tools",
+      "birthDate",
+      "idStatus",
+      "idNumber",
+      "phone"
+    ],
+    "trust": [
+      "with_reference"
+    ],
+    "demonstratedLevel": [
+      "expert"
+    ],
+    "levelVsYears": [
+      "matches"
+    ],
+    "route": [
+      "ready_to_match"
+    ],
+    "pendingKinds": [
+      "reference",
+      "tools",
+      "registration"
+    ],
+    "needsHuman": false
+  }
+}

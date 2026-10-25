@@ -1,22 +1,27 @@
 "use client";
 // Demo de voz: Manito habla, escucha, llena el formulario en vivo y termina con el perfil
 import { useEffect, useRef, useState } from "react";
-import { OPENING_LINE, initialState, runTurn, type TurnResult, type TurnState } from "@/lib/agent/stage";
+import { initialState, openingLine, runTurn, upcomingLines, type TurnResult, type TurnState } from "@/lib/agent/stage";
 import type { Assessment } from "@/lib/schema/assessment";
 import type { FormDraft } from "@/lib/schema/form";
+import { playHangUp } from "@/lib/voice/hangup";
 import { ScribeListener } from "@/lib/voice/scribe";
-import { clearCache, prefetch, speak, stopSpeaking } from "@/lib/voice/tts";
+import { clearCache, prefetch, speak, stopSpeaking, warm } from "@/lib/voice/tts";
 import { FormPanel } from "./FormPanel";
 import { ProfileCard } from "./ProfileCard";
+
+// Demo: solo nombre y oficio; el resto del registro lo completa una persona después
+const FLOW = "short";
+const OPENING_LINE = openingLine(FLOW);
 
 type Status = "idle" | "waiting" | "speaking" | "listening" | "thinking" | "assessing" | "done";
 
 // Silencio que da por terminada una respuesta hablada, según lo que se preguntó:
 // un "sí" es corto; explicar el oficio lleva pausas para pensar
 const SILENCE_MS: Record<"confirm" | "register" | "trade", number> = {
-  confirm: 1300,
-  register: 2000,
-  trade: 3000,
+  confirm: 1000,
+  register: 1500,
+  trade: 2200,
 };
 
 function silenceFor(asking: TurnState["asking"]): number {
@@ -37,18 +42,26 @@ const STATUS_LABEL: Record<Status, string> = {
   done: "Listo",
 };
 
-type Timing = { turnMs: number; voiceMs: number };
+type Timing = { turnMs: number; voiceMs: number; early: boolean };
+type TurnResponse = TurnResult & { degraded?: boolean };
 
-async function postTurn(state: TurnState, userText: string): Promise<TurnResult & { degraded?: boolean }> {
+// Turno pedido por adelantado en una pausa, con el texto que se había escuchado hasta ahí
+type EarlyTurn = { key: string; state: TurnState; result: Promise<TurnResponse>; controller: AbortController };
+
+async function postTurn(state: TurnState, userText: string, signal?: AbortSignal): Promise<TurnResponse> {
+  const timeout = AbortSignal.timeout(TURN_TIMEOUT_MS);
   const r = await fetch("/api/agent/turn", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ state, userText }),
-    signal: AbortSignal.timeout(TURN_TIMEOUT_MS),
+    signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
   });
   if (!r.ok) throw new Error(`turn ${r.status}`);
   return r.json();
 }
+
+// Para comparar lo escuchado en la pausa con el texto final, sin puntuación ni mayúsculas
+const sameText = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 
 export default function DemoPage() {
   const [turn, setTurn] = useState<TurnState | null>(null);
@@ -63,6 +76,7 @@ export default function DemoPage() {
   const [micOn, setMicOn] = useState(true);
   const [timings, setTimings] = useState<Timing[]>([]);
   const [engine, setEngine] = useState<"scribe" | "browser">("scribe");
+  const [callSeconds, setCallSeconds] = useState<number | null>(null); // duración, al colgar
 
   // Las funciones asíncronas leen siempre el valor actual desde aquí
   const stateRef = useRef<TurnState | null>(null);
@@ -72,16 +86,28 @@ export default function DemoPage() {
   const micOnRef = useRef(micOn);
   const listenerRef = useRef<ScribeListener | null>(null);
   const handleRef = useRef<(text: string) => void>(() => {});
+  const pauseRef = useRef<(text: string) => void>(() => {});
+  const earlyRef = useRef<EarlyTurn | null>(null);
+  const callStartRef = useRef(0);
   const transcriptEnd = useRef<HTMLDivElement>(null);
 
   useEffect(() => { voiceOnRef.current = voiceOn; }, [voiceOn]);
   useEffect(() => { micOnRef.current = micOn; }, [micOn]);
 
   useEffect(() => {
-    prefetch(OPENING_LINE); // que el saludo suene al instante
+    // Que el saludo y las preguntas fijas suenen al instante
+    prefetch([OPENING_LINE, ...upcomingLines(initialState(FLOW))]);
     listenerRef.current = new ScribeListener({
       silenceMs: SILENCE_MS.register,
-      onInterim: setInterim,
+      onInterim: (text) => {
+        setInterim(text);
+        // Siguió hablando: el turno pedido en la pausa ya no sirve
+        if (earlyRef.current && earlyRef.current.key !== sameText(text)) {
+          earlyRef.current.controller.abort();
+          earlyRef.current = null;
+        }
+      },
+      onPause: (text) => pauseRef.current(text),
       onFinal: (text) => handleRef.current(text),
       onError: (msg) => { setError(msg); setStatus((s) => (s === "listening" ? "waiting" : s)); },
       onEngineChange: setEngine,
@@ -103,22 +129,49 @@ export default function DemoPage() {
     }
   }
 
-  async function say(text: string, run: number, onStart?: () => void) {
+  async function say(parts: string | string[], run: number, onStart?: () => void) {
     if (run !== runRef.current) return;
     setStatus("speaking");
-    await speak(text, { enabled: voiceOnRef.current, onStart });
+    await speak(parts, { enabled: voiceOnRef.current, onStart });
+  }
+
+  function dropEarly() {
+    earlyRef.current?.controller.abort();
+    earlyRef.current = null;
+  }
+
+  // En una pausa se pide el turno sin esperar el silencio completo. Si el texto final
+  // es el mismo, la respuesta (y su audio) ya está lista o en camino.
+  function startEarly(text: string) {
+    const s = stateRef.current;
+    if (!s || busyRef.current || s.stage === "closing") return;
+    const key = sameText(text);
+    if (earlyRef.current?.key === key) return;
+    dropEarly();
+    const controller = new AbortController();
+    const result = postTurn(s, text, controller.signal);
+    result.then((r) => { if (earlyRef.current?.controller === controller) warm(r.speech); }).catch(() => {});
+    earlyRef.current = { key, state: s, result, controller };
   }
 
   async function start() {
     const run = ++runRef.current;
-    const s = initialState();
+    const s = initialState(FLOW);
     stateRef.current = s;
     setTurn(s);
     setError(null);
+    callStartRef.current = performance.now();
     // La sesión de Scribe se abre mientras suena el saludo
     if (micOnRef.current) listenerRef.current?.prepare();
     await say(OPENING_LINE, run);
     if (run === runRef.current) listen();
+  }
+
+  // Fin de la llamada: suena el colgado y queda la marca con la duración
+  async function hangUp(run: number) {
+    listenerRef.current?.close(); // libera el micrófono
+    setCallSeconds(Math.round((performance.now() - callStartRef.current) / 1000));
+    if (voiceOnRef.current && run === runRef.current) await playHangUp();
   }
 
   async function assess(s: TurnState, run: number) {
@@ -127,7 +180,7 @@ export default function DemoPage() {
       const r = await fetch("/api/agent/assess", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ form: s.form, history: s.history, needsHuman: s.needsHuman }),
+        body: JSON.stringify({ form: s.form, history: s.history, needsHuman: s.needsHuman, flow: s.flow }),
       });
       if (!r.ok) throw new Error(`assess ${r.status}`);
       const data = await r.json();
@@ -155,9 +208,13 @@ export default function DemoPage() {
     setTurn({ ...s, history: [...s.history, { speaker: "persona", text }] });
 
     const t0 = performance.now();
-    let result: TurnResult & { degraded?: boolean };
+    const early = earlyRef.current;
+    earlyRef.current = null;
+    const useEarly = early !== null && early.state === s && early.key === sameText(text);
+    if (!useEarly) early?.controller.abort();
+    let result: TurnResponse;
     try {
-      result = await postTurn(s, text);
+      result = await (useEarly ? early.result : postTurn(s, text));
     } catch {
       // Sin respuesta del servidor: se sigue en el navegador sin datos nuevos
       result = { ...(await runTurn(s, text, async () => null)), degraded: true };
@@ -169,40 +226,47 @@ export default function DemoPage() {
     setTurn(result.state);
     if (result.degraded) setError("No se pudo procesar esa respuesta a tiempo; Manito la vuelve a pedir.");
     if (result.evidenceNotes.length) setEvidence((e) => [...new Set([...e, ...result.evidenceNotes])]);
+    prefetch(upcomingLines(result.state)); // preguntas del oficio y despedida con el nombre
     const filled = new Set(Object.keys(result.formPatch) as (keyof FormDraft)[]);
     setJustFilled(filled);
     if (filled.size) setTimeout(() => setJustFilled(new Set()), 1800);
 
-    await say(result.reply, run, () => {
-      setTimings((t) => [...t, { turnMs, voiceMs: performance.now() - t0 }]);
+    await say(result.speech, run, () => {
+      setTimings((t) => [...t, { turnMs, voiceMs: performance.now() - t0, early: useEarly }]);
     });
     busyRef.current = false;
     if (run !== runRef.current) return;
     if (result.done) {
-      listenerRef.current?.close(); // libera el micrófono
+      await hangUp(run);
       await assess(result.state, run);
     } else {
       listen();
     }
   }
   // El micrófono llama a la versión más reciente del manejador
-  useEffect(() => { handleRef.current = handleUserText; });
+  useEffect(() => {
+    handleRef.current = handleUserText;
+    pauseRef.current = startEarly;
+  });
 
-  function finish() {
+  async function finish() {
     const s = stateRef.current;
     if (!s) return;
-    listenerRef.current?.cancel();
+    const run = runRef.current;
+    dropEarly();
     stopSpeaking();
     busyRef.current = false;
-    void assess(s, runRef.current);
+    if (callSeconds === null) await hangUp(run);
+    void assess(s, run);
   }
 
   function reset() {
     runRef.current++;
+    dropEarly();
     listenerRef.current?.close();
     stopSpeaking();
     clearCache();
-    prefetch(OPENING_LINE);
+    prefetch([OPENING_LINE, ...upcomingLines(initialState(FLOW))]);
     busyRef.current = false;
     stateRef.current = null;
     setTurn(null);
@@ -214,6 +278,7 @@ export default function DemoPage() {
     setAssessment(null);
     setError(null);
     setTimings([]);
+    setCallSeconds(null);
   }
 
   function submitDraft(e: React.FormEvent) {
@@ -273,6 +338,13 @@ export default function DemoPage() {
                 </p>
               </div>
             ))}
+            {callSeconds !== null && (
+              <p className="py-2 text-center text-sm opacity-60">
+                <span className="rounded-full bg-black/5 px-3 py-1 dark:bg-white/10">
+                  📞 Llamada finalizada · {Math.floor(callSeconds / 60)}:{String(callSeconds % 60).padStart(2, "0")}
+                </span>
+              </p>
+            )}
             {interim && (
               <div className="flex justify-end">
                 <p className="max-w-[85%] rounded-2xl border border-dashed border-black/20 px-4 py-2 opacity-60 dark:border-white/25">{interim}</p>
@@ -302,7 +374,7 @@ export default function DemoPage() {
 
         <aside className="space-y-4">
           {assessment ? <ProfileCard a={assessment} /> : null}
-          <FormPanel state={turn} justFilled={justFilled} />
+          <FormPanel state={turn} flow={FLOW} justFilled={justFilled} />
           {evidence.length > 0 && (
             <section className="rounded-2xl border border-black/10 p-4 dark:border-white/15">
               <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide opacity-60">Evidencia</h2>
@@ -315,7 +387,7 @@ export default function DemoPage() {
           )}
           {last && (
             <p className="text-xs tabular-nums opacity-50">
-              Último turno: respuesta {Math.round(last.turnMs)} ms · voz empieza {Math.round(last.voiceMs)} ms
+              Último turno: respuesta {Math.round(last.turnMs)} ms{last.early ? " (anticipada)" : ""} · voz empieza {Math.round(last.voiceMs)} ms
               {" "}· mediana voz {Math.round([...timings].map((t) => t.voiceMs).sort((a, b) => a - b)[Math.floor(timings.length / 2)])} ms
             </p>
           )}

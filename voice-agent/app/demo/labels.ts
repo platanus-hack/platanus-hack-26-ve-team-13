@@ -1,4 +1,5 @@
 // Textos en español para mostrar el formulario y la evaluación
+import type { Flow } from "@/lib/agent/stage";
 import { findTrade } from "@/lib/agent/trades";
 import type { Assessment } from "@/lib/schema/assessment";
 import type { FormDraft } from "@/lib/schema/form";
@@ -13,6 +14,13 @@ export const FORM_FIELDS = [
   ["yearsBand", "Años en el oficio"],
   ["tools", "Herramientas"],
 ] as const satisfies readonly (readonly [keyof FormDraft, string])[];
+
+// Campos que se preguntan en la demo corta
+const SHORT_FIELDS = new Set<keyof FormDraft>(["name", "trade", "yearsBand", "tools"]);
+
+export function formFields(flow: Flow) {
+  return flow === "short" ? FORM_FIELDS.filter(([f]) => SHORT_FIELDS.has(f)) : FORM_FIELDS;
+}
 
 const ID_STATUS = { valid: "Vigente", expired: "Vencida", lost: "La perdió", none: "No tiene" };
 const YEARS = { lt1: "Menos de 1 año", "1to3": "1 a 3 años", "3to10": "3 a 10 años", gt10: "Más de 10 años" };
@@ -80,11 +88,14 @@ export const ROUTE: Record<Assessment["route"], { label: string; detail: string;
   },
 };
 
-export const SCORES: [keyof Assessment["scores"], string][] = [
+export const SCORES: [keyof NonNullable<Assessment["scores"]>, string][] = [
   ["specificity", "Especificidad"],
   ["knowledge", "Conocimiento práctico"],
   ["coherence", "Coherencia"],
   ["externalEvidence", "Evidencia externa"],
 ];
 
-export const PENDING = { reference: "Llamar referencia", photo: "Revisar fotos", rif: "Verificar RIF", tools: "Preguntar por herramientas" };
+export const PENDING = {
+  reference: "Llamar referencia", photo: "Revisar fotos", rif: "Verificar RIF",
+  tools: "Preguntar por herramientas", registration: "Completar registro",
+};

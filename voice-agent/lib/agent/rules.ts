@@ -60,14 +60,15 @@ export function levelVsYears(
   return "matches";
 }
 
-// 4.4: gana la primera regla que aplique
-export function deriveRoute(form: FormDraft, scores: Scores, trust: Trust): Route {
+// 4.4: gana la primera regla que aplique. Sin puntajes (demo corta) solo cuentan
+// el oficio, las herramientas y la cédula.
+export function deriveRoute(form: FormDraft, scores: Scores | undefined, trust: Trust): Route {
   const hasTrade = form.trade != null;
   const manyYears = form.yearsBand === "3to10" || form.yearsBand === "gt10";
 
   // 🔴 Coherencia y conocimiento se miden sobre el oficio declarado, así que una
   // persona sin oficio va a formación y no a revisión.
-  if (hasTrade && (scores.coherence.score <= 1 || (scores.knowledge.score <= 1 && manyYears))) {
+  if (scores && hasTrade && (scores.coherence.score <= 1 || (scores.knowledge.score <= 1 && manyYears))) {
     return "human_review";
   }
   if (!hasTrade) return "training";
@@ -75,18 +76,26 @@ export function deriveRoute(form: FormDraft, scores: Scores, trust: Trust): Rout
   const atLeastProbed = TRUST_ORDER.indexOf(trust) >= TRUST_ORDER.indexOf("probed");
   // No está en la tabla del PRD: un oficio que esta conversación no pudo confirmar.
   // Una persona hace seguimiento en vez de enviarlo a matching.
-  if (!atLeastProbed) return "human_review";
+  if (scores && !atLeastProbed) return "human_review";
 
-  // Herramientas desconocidas no cuentan como faltantes (ver codePendingChecks); cédula desconocida sí.
+  // Herramientas o cédula desconocidas no cuentan como faltantes (ver codePendingChecks)
   const missingTools = form.tools === "lost" || form.tools === "never_had";
-  const missingId = form.idStatus !== "valid";
+  const missingId = form.idStatus !== undefined && form.idStatus !== "valid";
   return missingTools || missingId ? "ready_with_support" : "ready_to_match";
 }
 
 // Verificaciones que agrega el código además de las del modelo
 export function codePendingChecks(form: FormDraft): PendingCheck[] {
+  const checks: PendingCheck[] = [];
   if (form.trade != null && form.tools === undefined) {
-    return [{ kind: "tools", detail: "Preguntar si tiene herramientas de trabajo" }];
+    checks.push({ kind: "tools", detail: "Preguntar si tiene herramientas de trabajo" });
   }
-  return [];
+  // Datos del registro que no se tomaron en la conversación (demo corta, o no los dio)
+  const missing = [
+    form.idStatus === undefined && "cédula",
+    form.birthDate === undefined && "fecha de nacimiento",
+    form.phone === undefined && "teléfono",
+  ].filter(Boolean);
+  if (missing.length) checks.push({ kind: "registration", detail: `Completar registro: ${missing.join(", ")}` });
+  return checks;
 }

@@ -22,7 +22,9 @@ function scores(specificity: number, knowledge: number, coherence: number, exter
 }
 
 // José de la demo, antes de variar herramientas y cédula
-const mason: FormDraft = { trade: "masonry", yearsBand: "gt10", idStatus: "valid", tools: "has" };
+const mason: FormDraft = {
+  trade: "masonry", yearsBand: "gt10", idStatus: "valid", tools: "has", birthDate: "1980-03-03", phone: "04125551234",
+};
 
 describe("capUnquotedScores", () => {
   it("caps a score above 1 that has no quotes", () => {
@@ -115,6 +117,15 @@ describe("deriveRoute", () => {
     expect(deriveRoute({ ...mason, tools: "never_had" }, scores(2, 3, 3, 2), "probed")).toBe("ready_with_support");
   });
 
+  it("no scores (short demo) → only tools and ID decide", () => {
+    expect(deriveRoute(mason, undefined, "declared")).toBe("ready_to_match");
+    expect(deriveRoute({ ...mason, tools: "lost" }, undefined, "declared")).toBe("ready_with_support");
+  });
+
+  it("ID not asked (short demo) → not counted as missing", () => {
+    expect(deriveRoute({ ...mason, idStatus: undefined }, scores(2, 3, 3, 2), "probed")).toBe("ready_to_match");
+  });
+
   it("no valid ID → ready_with_support", () => {
     expect(deriveRoute({ ...mason, idStatus: "lost" }, scores(2, 3, 3, 2), "probed")).toBe("ready_with_support");
   });
@@ -147,8 +158,14 @@ describe("codePendingChecks", () => {
     ]);
   });
 
-  it("tools known or no trade → nothing to add", () => {
+  it("tools known or no trade, registration complete → nothing to add", () => {
     expect(codePendingChecks(mason)).toEqual([]);
-    expect(codePendingChecks({ trade: null })).toEqual([]);
+    expect(codePendingChecks({ trade: null, idStatus: "valid", birthDate: "1980-03-03", phone: "04125551234" })).toEqual([]);
+  });
+
+  it("registration data not taken → lists what to complete", () => {
+    expect(codePendingChecks({ name: "Daniela Pérez", trade: "reception", tools: "has" })).toEqual([
+      { kind: "registration", detail: "Completar registro: cédula, fecha de nacimiento, teléfono" },
+    ]);
   });
 });

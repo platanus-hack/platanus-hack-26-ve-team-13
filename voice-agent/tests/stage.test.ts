@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { DISTRESS_REPLY, OFF_SCRIPT_REPLY, RETRY_PREFIX } from "@/lib/agent/lines";
-import { initialState, runTurn, toFormPatch, type Extractor, type TurnState } from "@/lib/agent/stage";
+import { DISTRESS_REPLY, EXPERIENCE_INTRO, OFF_SCRIPT_REPLY, REGISTER_QUESTIONS, RETRY_PREFIX, VOUCH_LATER } from "@/lib/agent/lines";
+import { initialState, runTurn, toFormPatch, upcomingLines, type Extractor, type TurnState } from "@/lib/agent/stage";
 import type { Extraction } from "@/lib/schema/extraction";
 
 const empty: Extraction = {
@@ -15,6 +15,7 @@ const empty: Extraction = {
   noTrade: false,
   yearsBand: null,
   tools: null,
+  reference: null,
   confirmed: null,
   offScript: null,
   declined: [],
@@ -102,7 +103,7 @@ describe("runTurn: demo script (PRD section 5)", () => {
       "¿A qué número te escribimos por WhatsApp?",
       "Listo. Para confirmar: teléfono 0412-555-1234. ¿Está bien?",
       "Perfecto. ¿A qué te dedicabas antes del terremoto, y desde hace cuánto?",
-      "Lo siento mucho. Cuéntame paso a paso cómo frisas una pared.",
+      `Lo siento mucho. ${EXPERIENCE_INTRO} Cuéntame paso a paso cómo frisas una pared.`,
       "¿Y qué haces si la mezcla te queda muy aguada?",
       "¿Alguien puede dar fe de tu trabajo?",
       "¡Listo, José! Estoy armando tu perfil y te escribimos con los próximos pasos.",
@@ -300,5 +301,74 @@ describe("runTurn: off-script answers", () => {
     expect(state.form.phone).toBe("04125551234");
     expect(replies[0].startsWith(OFF_SCRIPT_REPLY)).toBe(true);
     expect(replies[0]).not.toContain("Listo.");
+  });
+});
+
+describe("speech parts", () => {
+  it("splits the ack and the next question, and joins to the reply", async () => {
+    const r = await runTurn(initialState(), "José Rodríguez, 3 de marzo de 1980",
+      scripted({ ack: "Mucho gusto, José.", name: "José Rodríguez", lastNames: "Rodríguez", birthDate: "1980-03-03" }));
+    expect(r.speech[0]).toBe("Mucho gusto, José.");
+    expect(r.speech.join(" ")).toBe(r.reply);
+  });
+
+  it("splits the retry prefix from the repeated question, so both are fixed lines", async () => {
+    const r = await runTurn(initialState(), "eh", scripted({}));
+    expect(r.speech).toEqual([RETRY_PREFIX, REGISTER_QUESTIONS.nameBirth.all]);
+  });
+
+  it("the experience intro before Q18 is its own part", async () => {
+    const start: TurnState = {
+      ...initialState(),
+      form: { name: "Daniela Pérez", birthDate: "1988-08-12", idStatus: "valid", phone: "04145552468" },
+      asking: "trade",
+      askCounts: { trade: 1 },
+    };
+    const r = await runTurn(start, "recepcionista, más de diez años",
+      scripted({ ack: "Listo.", trade: "recepcionista", yearsBand: "gt10" }));
+    expect(r.speech).toEqual([
+      "Listo.",
+      EXPERIENCE_INTRO,
+      "Cuéntame paso a paso cómo atiendes a una persona que llega a la recepción.",
+    ]);
+  });
+
+  it("off-script reply and the repeated question are separate parts", async () => {
+    const r = await runTurn(initialState(), "¿para qué?", scripted({ offScript: "question" }));
+    expect(r.speech).toEqual([OFF_SCRIPT_REPLY, REGISTER_QUESTIONS.nameBirth.all]);
+  });
+});
+
+describe("upcomingLines", () => {
+  it("includes the fixed register lines from the start", () => {
+    const lines = upcomingLines(initialState());
+    expect(lines).toContain(REGISTER_QUESTIONS.phone.all);
+    expect(lines).toContain(RETRY_PREFIX);
+  });
+
+  it("adds the trade questions and the closing with the name once known", () => {
+    const lines = upcomingLines({ ...initialState(), form: { name: "Daniela Pérez", trade: "reception", yearsBand: "gt10" } });
+    expect(lines).toContain("¿Cómo manejas a alguien que llega molesto y exige que lo atiendan ya?");
+    expect(lines.some((l) => l.includes("Daniela"))).toBe(true);
+  });
+});
+
+describe("short flow (demo)", () => {
+  it("asks only the name, the trade, and who can vouch; no read-back", async () => {
+    const extract = scripted(
+      { ack: "Mucho gusto, Daniela.", name: "Daniela Pérez", lastNames: "Pérez" },
+      { ack: "Listo.", trade: "recepcionista", yearsBand: "gt10" },
+      { ack: "Gracias.", reference: "la doctora Gómez, del consultorio" },
+    );
+    const { state, replies, done } = await play(extract, ["a1", "a2", "a3"], initialState("short"));
+    expect(initialState("short").history[0].text.endsWith(REGISTER_QUESTIONS.name.all)).toBe(true);
+    expect(replies).toEqual([
+      "Mucho gusto, Daniela. ¿A qué te dedicabas antes del terremoto, y desde hace cuánto?",
+      `Listo. ¿Alguien de donde trabajabas te podría recomendar, como un doctor, tu jefe o un compañero? ${VOUCH_LATER}`,
+      "¡Listo, Daniela! Estoy armando tu perfil y te escribimos con los próximos pasos.",
+    ]);
+    expect(done).toBe(true);
+    expect(state.unconfirmed).toEqual([]);
+    expect(state.form.reference).toBe("la doctora Gómez, del consultorio");
   });
 });

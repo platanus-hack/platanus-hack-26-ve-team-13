@@ -3,6 +3,7 @@
 import { z } from "zod";
 import {
   DISTRESS_REPLY,
+  EXPERIENCE_INTRO,
   GREETING,
   OFF_SCRIPT_REPLY,
   REGISTER_QUESTIONS,
@@ -17,7 +18,7 @@ import { DeclinableField, type Extraction } from "@/lib/schema/extraction";
 import { FormDraft } from "@/lib/schema/form";
 
 //todas las preguntas pendientes de un grupo de registro, que no se hayan respondido ni negado
-export const AskKey = z.enum(["nameBirth", "id", "phone", "trade", "confirm", "q18", "q19", "q22"]);
+export const AskKey = z.enum(["name", "nameBirth", "id", "phone", "trade", "confirm", "q18", "q19", "q22"]);
 export type AskKey = z.infer<typeof AskKey>;
 
 // Datos que Manito lee de vuelta antes de darlos por buenos
@@ -31,8 +32,14 @@ export const Line = z.object({
 });
 export type Line = z.infer<typeof Line>;
 
+// "full": registro completo (nombre, nacimiento, cédula, teléfono, oficio).
+// "short": demo; solo nombre, oficio y quién puede dar fe del trabajo; lo demás lo completa una persona después.
+export const Flow = z.enum(["full", "short"]);
+export type Flow = z.infer<typeof Flow>;
+
 // Lo guarda el cliente y lo reenvía en cada turno; las rutas no guardan nada
 export const TurnState = z.object({
+  flow: Flow.default("full"),
   stage: z.enum(["register", "validate", "closing"]),
   form: FormDraft,
   skipped: z.array(DeclinableField),          // negados, o sin entender tras repetir la pregunta
@@ -47,6 +54,7 @@ export type TurnState = z.infer<typeof TurnState>;
 
 export type TurnResult = {
   reply: string;
+  speech: string[];   // reply en partes que se generan en audio por separado: las fijas ya están en caché
   formPatch: FormDraft;
   evidenceNotes: string[];
   state: TurnState;
@@ -56,8 +64,12 @@ export type TurnResult = {
 // Extrae datos de la última respuesta; null si Claude falló (la conversación sigue)
 export type Extractor = (input: { question: string; answer: string }) => Promise<Extraction | null>;
 
-type RegisterGroup = "nameBirth" | "id" | "phone" | "trade";
-const REGISTER_ORDER: RegisterGroup[] = ["nameBirth", "id", "phone", "trade"];
+type RegisterGroup = "name" | "nameBirth" | "id" | "phone" | "trade";
+const REGISTER_ORDER: Record<Flow, RegisterGroup[]> = {
+  full: ["nameBirth", "id", "phone", "trade"],
+  short: ["name", "trade"],
+};
+const ALL_GROUPS = new Set<AskKey>([...REGISTER_ORDER.full, ...REGISTER_ORDER.short]);
 const VALIDATE_KEYS = { 18: "q18", 19: "q19", 22: "q22" } as const;
 const MAX_ASKS = 2;
 // Veces que Manito responde algo fuera del guion antes de seguir como si no hubiera respuesta
@@ -69,28 +81,60 @@ const CONFIRM_GROUP: Record<ConfirmField, RegisterGroup> = {
   phone: "phone",
 };
 
-const isRegisterGroup = (k: AskKey | null): k is RegisterGroup =>
-  REGISTER_ORDER.includes(k as RegisterGroup);
+const isRegisterGroup = (k: AskKey | null): k is RegisterGroup => k !== null && ALL_GROUPS.has(k);
 
 // Primera frase de Manito; la página la genera en audio antes de empezar
-export const OPENING_LINE = `${GREETING} ${REGISTER_QUESTIONS.nameBirth.all}`;
+export function openingLine(flow: Flow = "full"): string {
+  return `${GREETING} ${REGISTER_QUESTIONS[REGISTER_ORDER[flow][0]].all}`;
+}
 
-export function initialState(): TurnState {
+// Acuses frecuentes de Claude, para tener su audio listo
+const COMMON_ACKS = ["Listo.", "Perfecto.", "Mucho gusto.", "Lo siento mucho.", "Gracias."];
+
+// Separa las frases fijas que van antes de una pregunta ("Disculpa, no te entendí bien.",
+// el aviso de las preguntas del oficio), para que cada parte tenga su audio en caché
+const FIXED_PREFIXES = [RETRY_PREFIX, EXPERIENCE_INTRO];
+
+function speechParts(...lines: string[]): string[] {
+  return lines
+    .flatMap((l) => {
+      const prefix = FIXED_PREFIXES.find((p) => l.startsWith(p));
+      return prefix ? [prefix, l.slice(prefix.length).trim()] : [l];
+    })
+    .filter(Boolean);
+}
+
+// Frases que Manito puede decir pronto en este estado, para generar su audio por adelantado
+export function upcomingLines(state: TurnState): string[] {
+  const lines: string[] = [
+    ...Object.values(REGISTER_QUESTIONS).flatMap((q) => Object.values(q)),
+    RETRY_PREFIX, EXPERIENCE_INTRO, OFF_SCRIPT_REPLY, DISTRESS_REPLY, ...COMMON_ACKS,
+    ...buildQuestionPlan(state.form, state.flow).questions.map((q) => q.text),
+    closingLine(state.form.name),
+  ];
+  return [...new Set(lines)];
+}
+
+export function initialState(flow: Flow = "full"): TurnState {
+  const first = REGISTER_ORDER[flow][0];
   return {
+    flow,
     stage: "register",
     form: { intakeId: crypto.randomUUID() },
     skipped: [],
     unconfirmed: [],
-    asking: "nameBirth",
-    askCounts: { nameBirth: 1 },
+    asking: first,
+    askCounts: { [first]: 1 },
     offScriptTurns: 0,
     needsHuman: false,
-    history: [{ speaker: "manito", text: OPENING_LINE }],
+    history: [{ speaker: "manito", text: openingLine(flow) }],
   };
 }
 
 function requiredFields(group: RegisterGroup, form: FormDraft): DeclinableField[] {
   switch (group) {
+    case "name":
+      return ["name"];
     case "nameBirth":
       return ["name", "birthDate"];
     case "id":
@@ -120,7 +164,7 @@ function questionFor(key: AskKey | null, state: TurnState): string {
     return confirmLine(Object.fromEntries(state.unconfirmed.map((f) => [f, state.form[f]])));
   }
   if (isRegisterGroup(key)) return registerQuestion(key, missingFields(key, state));
-  return buildQuestionPlan(state.form).questions.find((q) => VALIDATE_KEYS[q.id] === key)?.text ?? "";
+  return buildQuestionPlan(state.form, state.flow).questions.find((q) => VALIDATE_KEYS[q.id] === key)?.text ?? "";
 }
 
 // Pasa la extracción por los normalizadores y el esquema; descarta lo inválido
@@ -136,6 +180,7 @@ export function toFormPatch(x: Extraction): FormDraft {
     trade: x.noTrade ? null : trade ? (findTrade(trade)?.id ?? trade.toLowerCase()) : undefined,
     yearsBand: x.yearsBand,
     tools: x.tools,
+    reference: x.reference?.trim(),
   };
   const patch: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(raw)) {
@@ -150,7 +195,8 @@ export function toFormPatch(x: Extraction): FormDraft {
 // funcion corre cada vez que la persona habla, y decide qué responder y qué preguntar a continuación
 export async function runTurn(state: TurnState, userText: string, extract: Extractor): Promise<TurnResult> {
   if (state.stage === "closing") {
-    return { reply: closingLine(state.form.name), formPatch: {}, evidenceNotes: [], state, done: true };
+    const reply = closingLine(state.form.name);
+    return { reply, speech: [reply], formPatch: {}, evidenceNotes: [], state, done: true };
   }
 
   const lastLine = state.history.findLast((l) => l.speaker === "manito")?.text ?? "";
@@ -165,7 +211,8 @@ export async function runTurn(state: TurnState, userText: string, extract: Extra
 
   // Sin datos nuevos: se repite la misma pregunta y no cuenta como respuesta fallida
   if (offScript && !gaveData && (offScript === "distress" || state.offScriptTurns < MAX_OFF_SCRIPT)) {
-    const reply = `${offScriptLine} ${questionFor(state.asking, state)}`;
+    const speech = speechParts(offScriptLine, questionFor(state.asking, state));
+    const reply = speech.join(" ");
     const held: TurnState = {
       ...state,
       offScriptTurns: state.offScriptTurns + 1,
@@ -176,7 +223,7 @@ export async function runTurn(state: TurnState, userText: string, extract: Extra
         { speaker: "manito", text: reply },
       ],
     };
-    return { reply, formPatch: {}, evidenceNotes: [], state: held, done: false };
+    return { reply, speech, formPatch: {}, evidenceNotes: [], state: held, done: false };
   }
 
   const next: TurnState = {
@@ -201,7 +248,8 @@ export async function runTurn(state: TurnState, userText: string, extract: Extra
   }
 
   // Datos nuevos o corregidos en esta respuesta, que hay que leer de vuelta
-  const toConfirm = ConfirmField.options.filter(
+  // (en la demo corta no se lee nada, para no alargarla)
+  const toConfirm = state.flow === "short" ? [] : ConfirmField.options.filter(
     (f) => formPatch[f] !== undefined && formPatch[f] !== state.form[f],
   );
 
@@ -224,8 +272,9 @@ export async function runTurn(state: TurnState, userText: string, extract: Extra
   if (rejected.length === 0) next.unconfirmed = [...new Set([...next.unconfirmed, ...toConfirm])];
 
   // Lo rechazado se pregunta otra vez; si ya se repitió, se sigue sin ese dato
+  const order = REGISTER_ORDER[state.flow];
   const retryGroup = confirmCount < MAX_ASKS
-    ? REGISTER_ORDER.find(
+    ? order.find(
         (g) => rejected.some((f) => CONFIRM_GROUP[f] === g) && (next.askCounts[g] ?? 0) < MAX_ASKS,
       )
     : undefined;
@@ -239,7 +288,7 @@ export async function runTurn(state: TurnState, userText: string, extract: Extra
   let nextLine: string;
 
   const pending = next.stage === "register"
-    ? REGISTER_ORDER.find((g) => missingFields(g, next).length > 0)
+    ? order.find((g) => missingFields(g, next).length > 0)
     : undefined;
   // Se confirma cuando el grupo de esos datos ya no tiene preguntas pendientes
   const confirmNow = next.unconfirmed.length > 0 &&
@@ -274,13 +323,13 @@ export async function runTurn(state: TurnState, userText: string, extract: Extra
   } else {
     next.stage = "validate";
     // Se recalcula del formulario; si no hay oficio, el plan viene vacío
-    const plan = buildQuestionPlan(next.form);
+    const plan = buildQuestionPlan(next.form, next.flow);
     const askedIdx = plan.questions.findIndex((q) => VALIDATE_KEYS[q.id] === asked);
     const nextQ = plan.questions[askedIdx + 1];
     if (nextQ) {
       nextAsk = VALIDATE_KEYS[nextQ.id];
       next.askCounts[nextAsk] = 1;
-      nextLine = nextQ.text;
+      nextLine = nextQ.id === 18 ? `${EXPERIENCE_INTRO} ${nextQ.text}` : nextQ.text;
     } else {
       next.stage = "closing";
       ack = "";
@@ -295,12 +344,14 @@ export async function runTurn(state: TurnState, userText: string, extract: Extra
     if (nextLine.startsWith(RETRY_PREFIX)) nextLine = nextLine.slice(RETRY_PREFIX.length).trimStart();
   }
 
-  const reply = [ack, nextLine].filter(Boolean).join(" ");
+  const speech = speechParts(ack, nextLine);
+  const reply = speech.join(" ");
   next.asking = nextAsk;
   next.history.push({ speaker: "manito", text: reply });
 
   return {
     reply,
+    speech,
     formPatch,
     evidenceNotes: extraction?.evidenceNotes ?? [],
     state: next,

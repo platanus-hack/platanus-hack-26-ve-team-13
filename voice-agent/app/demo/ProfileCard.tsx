@@ -5,6 +5,7 @@ import { LEVEL, LEVEL_VS_YEARS, PENDING, ROUTE, SCORES, TRUST_STEPS } from "./la
 export function ProfileCard({ a }: { a: Assessment }) {
   const route = ROUTE[a.route];
   const trustIdx = TRUST_STEPS.findIndex(([t]) => t === a.trust);
+  const scores = a.scores;   // no hay en la demo corta
 
   return (
     <section className="space-y-4 rounded-2xl border border-black/10 p-4 dark:border-white/15">
@@ -41,9 +42,9 @@ export function ProfileCard({ a }: { a: Assessment }) {
         {LEVEL_VS_YEARS[a.levelVsYears] && <span className="opacity-60">, {LEVEL_VS_YEARS[a.levelVsYears]}</span>}
       </p>
 
-      <div className="space-y-2">
+      {scores && <div className="space-y-2">
         {SCORES.map(([key, label]) => {
-          const s = a.scores[key];
+          const s = scores[key];
           return (
             <details key={key} className="group">
               <summary className="flex cursor-pointer items-center gap-2 text-sm">
@@ -62,7 +63,7 @@ export function ProfileCard({ a }: { a: Assessment }) {
             </details>
           );
         })}
-      </div>
+      </div>}
 
       {a.toolsNeeded.length > 0 && (
         <p className="text-sm"><span className="opacity-60">Necesita: </span>{a.toolsNeeded.join(", ")}</p>

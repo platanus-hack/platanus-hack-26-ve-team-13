@@ -17,12 +17,13 @@ export const ModelAssessment = z.object({  // lo que devuelve Claude
   observations: z.array(z.string()).min(1).max(3),
   toolsNeeded: z.array(z.string()),
   pendingChecks: z.array(z.object({
-    kind: z.enum(["reference", "photo", "rif", "tools"]),   // "tools" lo agrega el código, no el modelo
+    kind: z.enum(["reference", "photo", "rif", "tools", "registration"]),   // "tools" y "registration" los agrega el código
     detail: z.string(),
   })),
 });
 
 export const Assessment = ModelAssessment.extend({  // lo que agrega el código
+  scores: ModelAssessment.shape.scores.optional(),   // sin puntajes en la demo corta: no se pregunta por el oficio
   levelVsYears: z.enum(["matches", "below", "above", "not_assessed"]),
   trust: z.enum(["declared", "probed", "with_reference", "verified"]),
   route: z.enum(["human_review", "training", "ready_with_support", "ready_to_match"]),

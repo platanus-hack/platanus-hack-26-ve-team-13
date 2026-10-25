@@ -3,7 +3,7 @@ import type { Line } from "@/lib/agent/stage";
 import { findTrade, TRADES } from "@/lib/agent/trades";
 import type { FormDraft } from "@/lib/schema/form";
 
-export const TURN_PROMPT_VERSION = "turn-v6";
+export const TURN_PROMPT_VERSION = "turn-v7";
 export const ASSESS_PROMPT_VERSION = "assess-v3";
 
 const tradeList = TRADES.map((t) => `- ${t.id}: ${t.label} (${t.aliases.slice(0, 4).join(", ")})`).join("\n");
@@ -26,6 +26,7 @@ ${tradeList}
 - noTrade: true solo si dice que no tenía oficio o que quiere aprender uno.
 - yearsBand: cuánto tiempo lleva en el oficio. "lt1" menos de un año, "1to3" de 1 a 3 años, "3to10" de 3 a 10 años, "gt10" más de 10 años.
 - tools: solo si menciona sus herramientas de trabajo. "has" las tiene, "lost" las perdió, "never_had" nunca tuvo.
+- reference: solo si Manito preguntó si alguien puede dar fe de su trabajo y la persona nombra a alguien: quién es y cómo ubicarla, tal como lo dijo (por ejemplo, "la señora Carmen, en Catia La Mar"). null si dice que no hay nadie.
 - declined: los campos que la persona se niega explícitamente a dar.
 - offScript: null si la persona responde a lo que se le preguntó, aunque la respuesta sea corta, vaga o incompleta.
   - "question": en vez de responder, hace una pregunta ("¿para qué quieren mi número?", "¿me van a dar trabajo?") o habla de otro tema.

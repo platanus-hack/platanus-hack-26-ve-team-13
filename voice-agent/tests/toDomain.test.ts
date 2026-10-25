@@ -121,6 +121,15 @@ describe("toPerfil", () => {
     ]);
   });
 
+  it("without scores (short demo): no resumen_validacion, puntajes at 0 marked not assessed", () => {
+    const p = toPerfil(jose, { ...assessment, scores: undefined, demonstratedLevel: "not_assessed", trust: "declared" });
+    expect(p.validacion_tecnica_ia.resumen_validacion).toBeUndefined();
+    expect(p.validacion_tecnica_ia.evaluacion_detallada?.puntajes.coherencia).toEqual({
+      puntaje: 0, citas: [], razon: "No evaluado: no se preguntó por el oficio",
+    });
+    expect(p.validacion_tecnica_ia.evaluacion_detallada?.nivel_demostrado).toBe("no_evaluado");
+  });
+
   it("maps no trade and freelance", () => {
     const p = toPerfil({ ...jose, trade: null, yearsBand: undefined, seeking: "freelance" }, { ...assessment, trust: "declared" });
     expect(p.oficio_principal.nombre).toBe("sin_oficio");

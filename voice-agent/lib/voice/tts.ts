@@ -24,20 +24,45 @@ function fetchAudio(text: string): Promise<Blob | null> {
   return audio;
 }
 
-// Pide el audio por adelantado (por ejemplo, el saludo antes de empezar)
-export function prefetch(text: string): void {
-  void fetchAudio(speakable(text));
+// Cola de frases para generar por adelantado, de a una para no pasar el límite de
+// pedidos simultáneos de ElevenLabs y dejar lugar a lo que se va a decir ya
+const queue: string[] = [];
+let prefetching = false;
+
+function pump(): void {
+  if (prefetching) return;
+  const next = queue.shift();
+  if (next === undefined) return;
+  if (cache.has(next)) return pump();
+  prefetching = true;
+  void fetchAudio(next).finally(() => { prefetching = false; pump(); });
+}
+
+// Pone en cola el audio de frases que se van a decir más adelante
+export function prefetch(texts: string[]): void {
+  for (const t of texts.map(speakable)) {
+    if (t && !cache.has(t) && !queue.includes(t)) queue.push(t);
+  }
+  pump();
+}
+
+// Pide ya el audio de frases que probablemente se digan en segundos (sin pasar por la cola)
+export function warm(texts: string[]): void {
+  for (const t of texts) if (t) void fetchAudio(speakable(t));
 }
 
 export function clearCache(): void {
   cache.clear();
+  queue.length = 0;
 }
 
 let finishCurrent: (() => void) | null = null;
 let currentAudio: HTMLAudioElement | null = null;
+let generation = 0; // cambia en stopSpeaking(), para cortar una secuencia de partes
 
 // Corta lo que esté sonando; la promesa de speak() se resuelve
 export function stopSpeaking(): void {
+  generation++;
   currentAudio?.pause();
   currentAudio = null;
   if (typeof speechSynthesis !== "undefined") speechSynthesis.cancel();
@@ -45,35 +70,54 @@ export function stopSpeaking(): void {
   finishCurrent = null;
 }
 
-// Habla y se resuelve cuando termina (o cuando se corta con stopSpeaking)
+function play(blob: Blob, onPlay: () => void): Promise<boolean> {
+  const url = URL.createObjectURL(blob);
+  const audio = new Audio(url);
+  currentAudio = audio;
+  return new Promise<boolean>((resolve) => {
+    finishCurrent = () => resolve(true);
+    audio.onplay = onPlay;
+    audio.onended = () => resolve(true);
+    audio.onerror = () => resolve(false);
+    audio.play().catch(() => resolve(false));
+  }).finally(() => {
+    URL.revokeObjectURL(url);
+    if (currentAudio === audio) currentAudio = null;
+  });
+}
+
+// Dice las partes seguidas y se resuelve cuando termina (o cuando se corta con stopSpeaking).
+// El audio de todas se pide a la vez; las fijas ya suelen estar en caché.
 export async function speak(
-  text: string,
+  parts: string | string[],
   opts: { enabled?: boolean; onStart?: (source: VoiceSource) => void } = {},
 ): Promise<VoiceSource> {
   stopSpeaking();
+  const gen = generation;
   if (opts.enabled === false) {
     opts.onStart?.("silent");
     return "silent";
   }
 
-  const spoken = speakable(text);
-  const blob = await fetchAudio(spoken);
-  if (blob) {
-    const url = URL.createObjectURL(blob);
-    const audio = new Audio(url);
-    currentAudio = audio;
-    const played = await new Promise<boolean>((resolve) => {
-      finishCurrent = () => resolve(true);
-      audio.onplay = () => opts.onStart?.("elevenlabs");
-      audio.onended = () => resolve(true);
-      audio.onerror = () => resolve(false);
-      audio.play().catch(() => resolve(false));
-    });
-    URL.revokeObjectURL(url);
-    if (currentAudio === audio) currentAudio = null;
-    if (played) return "elevenlabs";
+  const spoken = (Array.isArray(parts) ? parts : [parts]).map(speakable).filter(Boolean);
+  const audios = spoken.map(fetchAudio);
+  let started = false;
+  const onPlay = () => {
+    if (!started) opts.onStart?.("elevenlabs");
+    started = true;
+  };
+
+  for (let i = 0; i < spoken.length; i++) {
+    const blob = await audios[i];
+    if (gen !== generation) return "elevenlabs";
+    // Sin audio de ElevenLabs: lo que falta lo dice la voz del navegador
+    if (!blob || !(await play(blob, onPlay))) {
+      if (gen !== generation) return "elevenlabs";
+      return speakWithBrowser(spoken.slice(i).join(" "), started ? undefined : opts.onStart);
+    }
+    if (gen !== generation) break;
   }
-  return speakWithBrowser(spoken, opts.onStart);
+  return "elevenlabs";
 }
 
 function speakWithBrowser(text: string, onStart?: (source: VoiceSource) => void): Promise<VoiceSource> {

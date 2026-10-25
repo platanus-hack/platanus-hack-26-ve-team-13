@@ -2,10 +2,13 @@
 
 // Siempre se aclara primero que no hay una persona atendiendo
 export const GREETING =
-  "Hola, soy Manito, de Impaktemos. En este momento no hay una persona disponible para atenderte, así que por ahora te atiendo yo. Te voy a hacer unas preguntas cortas para registrarte.";
+  "Hola, soy Manito, de Impaktemos. Ahorita no hay una persona disponible, así que te atiendo yo con unas preguntas cortas para registrarte.";
 
 // Preguntas del registro, por grupo. "all" cuando falta todo el grupo.
 export const REGISTER_QUESTIONS = {
+  name: {
+    all: "¿Cómo te llamas?",
+  },
   nameBirth: {
     all: "¿Cómo te llamas y cuándo naciste?",
     name: "¿Cómo te llamas?",
@@ -24,6 +27,12 @@ export const REGISTER_QUESTIONS = {
     yearsBand: "¿Y desde hace cuánto te dedicas a eso?",
   },
 } as const;
+
+// Antes de la primera pregunta sobre el oficio (P18): avisa el cambio de tema
+export const EXPERIENCE_INTRO = "Ahora te voy a hacer unas preguntas sobre tu experiencia de trabajo para entender mejor tu perfil y ver que es lo mejor que te podemos conseguir.";
+
+// Después de "¿Alguien puede dar fe de tu trabajo?" en la demo corta
+export const VOUCH_LATER = "Si es así, dime su nombre y nosotros la contactamos más adelante.";
 
 // Se antepone cuando una respuesta no se entendió y se repite la pregunta
 export const RETRY_PREFIX = "Disculpa, no te entendí bien.";

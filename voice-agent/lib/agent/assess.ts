@@ -5,6 +5,7 @@ import {
   deriveRoute,
   deriveTrust,
   levelVsYears,
+  type PendingCheck,
   type Scores,
 } from "@/lib/agent/rules";
 import type { Line } from "@/lib/agent/stage";
@@ -30,6 +31,28 @@ export function keepVerbatimQuotes(scores: Scores, history: Line[]): Scores {
   };
 }
 
+// Demo corta: sin preguntas del oficio no hay nada que puntuar, así que no se llama al modelo
+export const UNSCORED_MODEL = "ninguno";
+
+export function buildUnscoredAssessment(input: { form: FormDraft; needsHuman?: boolean; now?: Date }): Assessment {
+  const { form } = input;
+  const reference: PendingCheck[] = form.reference ? [{ kind: "reference", detail: form.reference }] : [];
+  return {
+    demonstratedLevel: "not_assessed",
+    observations: [form.reference
+      ? "No se evaluó el oficio en la conversación; dio una referencia para contactar."
+      : "No se evaluó el oficio en la conversación y no dio referencias."],
+    toolsNeeded: [],
+    pendingChecks: [...reference, ...codePendingChecks(form)],
+    levelVsYears: "not_assessed",
+    trust: "declared",
+    route: deriveRoute(form, undefined, "declared"),
+    needsHuman: input.needsHuman ?? false,
+    model: UNSCORED_MODEL,
+    assessedAt: (input.now ?? new Date()).toISOString(),
+  };
+}
+
 export function buildAssessment(input: {
   form: FormDraft;
   history: Line[];
@@ -37,7 +60,7 @@ export function buildAssessment(input: {
   model: string;
   needsHuman?: boolean;
   now?: Date;
-}): Assessment {
+}): Assessment & { scores: Scores } {
   const { form, history, modelAssessment: m } = input;
   const scores = capUnquotedScores(keepVerbatimQuotes(m.scores, history));
   // Sin oficio no hay conocimiento que evaluar
@@ -48,8 +71,11 @@ export function buildAssessment(input: {
     ...m,
     scores,
     demonstratedLevel,
-    // "tools" lo decide el código, no el modelo
-    pendingChecks: [...m.pendingChecks.filter((c) => c.kind !== "tools"), ...codePendingChecks(form)],
+    // "tools" y "registration" los decide el código, no el modelo
+    pendingChecks: [
+      ...m.pendingChecks.filter((c) => c.kind !== "tools" && c.kind !== "registration"),
+      ...codePendingChecks(form),
+    ],
     levelVsYears: levelVsYears(demonstratedLevel, form.yearsBand),
     trust,
     route: deriveRoute(form, scores, trust),

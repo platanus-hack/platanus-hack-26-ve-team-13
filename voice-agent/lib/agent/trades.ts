@@ -12,6 +12,7 @@ export type Trade = {
   vocabulary: string[];              // términos del oficio que indican conocimiento práctico
   followUps: Record<Level, string>;  // P19, según el nivel esperado por los años declarados
   tools: string[];
+  vouch?: string;                    // P22 propia del oficio; si no hay, se usa la general
 };
 
 export const TRADES: Trade[] = [
@@ -38,6 +39,37 @@ export const TRADES: Trade[] = [
       expert: "¿Y qué haces si la mezcla te queda muy aguada?",
     },
     tools: ["cuchara", "llana", "fratacho", "regla o codal", "nivel", "plomada", "carretilla", "pala"],
+  },
+  {
+    id: "reception",
+    label: "recepcionista",
+    aliases: [
+      "recepcionista", "recepcion", "recepcionista de clinica", "recepcionista de hotel",
+      "atencion al publico", "atencion al cliente", "receptionist",
+    ],
+    depth: "full",
+    task: "atiendes a una persona que llega a la recepción",
+    expectedSteps: [
+      "Saludar con cortesía y preguntar en qué la puede ayudar",
+      "Preguntar si tiene cita o reservación y buscarla en la agenda o el sistema",
+      "Pedir la cédula y registrar o verificar sus datos (libro o sistema de visitantes)",
+      "Avisar por teléfono o extensión a la persona o el área que la va a atender",
+      "Indicarle dónde esperar o cómo llegar, y entregarle el pase o la llave si aplica",
+      "Si hay retraso o la persona no está, informarle, tomar el mensaje o reagendar",
+    ],
+    vocabulary: [
+      "agenda", "cita", "reservación", "extensión", "central telefónica", "libro de visitantes",
+      "pase de visitante", "registro", "recado", "transferir", "en espera", "reagendar",
+      "carta aval", "check-in", "sala de espera",
+    ],
+    followUps: {
+      basic: "¿Qué haces si llega alguien y la persona que busca no está?",
+      intermediate: "¿Qué haces cuando llegan varias personas a la vez y suena el teléfono?",
+      // Coincide con el guion de la demo (fixture 12)
+      expert: "¿Cómo manejas a alguien que llega molesto y exige que lo atiendan ya?",
+    },
+    tools: ["computadora", "teléfono o central telefónica", "impresora", "agenda o sistema de citas", "uniforme"],
+    vouch: "¿Alguien de donde trabajabas te podría recomendar, como un doctor, tu jefe o un compañero?",
   },
   {
     id: "programming",

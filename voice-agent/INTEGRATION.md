@@ -47,8 +47,26 @@ Spanish.** `intakeId` becomes `Persona.id` and `Perfil.persona_id`.
   and Perfil with `toDomain()` and only logs. Oli writes the route that saves
   them to Supabase and Mongo; then `persistIntake()` calls it.
 - [ ] **Assessment schema differs from PRD section 9:** `pendingChecks[].kind`
-  adds `"tools"` (code asks about tools when the person never mentioned them).
-  Oli's dashboard must accept it.
+  adds `"tools"` (code asks about tools when the person never mentioned them)
+  and `"registration"` (cédula, birth date or phone not taken; stored as
+  `'registro'` in `TipoVerificacion`). Oli's dashboard must accept them.
+- [ ] **Short demo flow** (`TurnState.flow = "short"`, used by `/demo`): asks
+  only the name, then trade and years, then whether someone can vouch for
+  their work (P22, with "we'll contact them later"). No technical questions
+  (P18, P19). `Form.idStatus` is optional (PRD
+  section 9 had it required); an unknown cédula doesn't count as missing
+  documents for the route, and Persona gets `estado_cedula: 'no_tiene'` from
+  `SIN_DATO` until Oli makes it optional. The full flow is still in the code.
+- [ ] **Unscored assessment in the short flow:** `/api/agent/assess` takes
+  `flow` in the body; for `"short"` it doesn't call Claude
+  (`buildUnscoredAssessment`). `Assessment.scores` is optional, level is
+  `not_assessed`, trust `declared`, `model` `"ninguno"`, and the route comes
+  only from trade, tools and cédula (`deriveRoute` with no scores). The person
+  they named (`Form.reference`, new) becomes a `reference` pending check and a
+  `referencias[]` entry. In Perfil, `resumen_validacion` is left out (no
+  `puntuacion_global`) and `evaluacion_detallada.puntajes` are 0 with reason
+  "No evaluado" because `IEvaluacionDetallada` requires them. Ask Oli to make
+  `puntajes` optional.
 - [ ] **`Assessment.needsHuman`** (boolean, not in PRD section 9): the person
   mentioned danger or an urgent need during the conversation. The dashboard
   should surface it above everything else so someone contacts them soon.
@@ -81,7 +99,7 @@ Scripts to add: `test` (`vitest run`), `test:watch` (`vitest`), and `eval`
 ## Environment variables
 
 `ANTHROPIC_API_KEY`, `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`: add to
-`/manito/.env.local` and to the deployment. Optional: `ELEVENLABS_MODEL_ID`
+`/manito/.env.local` and to the deployment. Optional: `ELEVENLABS_SPEED` (default 1.1), `ELEVENLABS_MODEL_ID`
 (voice model, default `eleven_flash_v2_5`).
 
 The ElevenLabs key needs the **Text to Speech** and **Speech to Text**

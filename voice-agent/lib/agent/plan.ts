@@ -1,5 +1,7 @@
 // Preguntas de validación de la demo: P18 → P19 → P22 (PRD sección 3)
+import { VOUCH_LATER } from "@/lib/agent/lines";
 import type { Level } from "@/lib/agent/rules";
+import type { Flow } from "@/lib/agent/stage";
 import { findTrade, type Trade } from "@/lib/agent/trades";
 import type { FormDraft, YearsBand } from "@/lib/schema/form";
 
@@ -32,7 +34,7 @@ const GENERIC_FOLLOW_UPS: Record<Level, string> = {
 
 const VOUCH = "¿Alguien puede dar fe de tu trabajo?";
 
-export function buildQuestionPlan(form: FormDraft): QuestionPlan {
+export function buildQuestionPlan(form: FormDraft, flow: Flow = "full"): QuestionPlan {
   // Años desconocidos: la repregunta más suave, para que nadie se sienta examinado
   const followUpLevel = form.yearsBand ? FOLLOW_UP_LEVEL[form.yearsBand] : "basic";
 
@@ -40,6 +42,17 @@ export function buildQuestionPlan(form: FormDraft): QuestionPlan {
   if (!form.trade) return { trade: null, followUpLevel, questions: [] };
 
   const trade = findTrade(form.trade) ?? null;
+  const vouch = trade?.vouch ?? VOUCH;
+
+  // Demo corta: solo quién puede dar fe; a esa persona se la contacta después
+  if (flow === "short") {
+    return {
+      trade,
+      followUpLevel,
+      questions: [{ id: 22, text: `${vouch} ${VOUCH_LATER}`, criterion: "externalEvidence" }],
+    };
+  }
+
   const task = trade ? trade.task : `haces un trabajo típico de ${form.trade}`;
   const followUp = trade ? trade.followUps[followUpLevel] : GENERIC_FOLLOW_UPS[followUpLevel];
 
@@ -49,7 +62,7 @@ export function buildQuestionPlan(form: FormDraft): QuestionPlan {
     questions: [
       { id: 18, text: `Cuéntame paso a paso cómo ${task}.`, criterion: "knowledge" },
       { id: 19, text: followUp, criterion: "coherence" },
-      { id: 22, text: VOUCH, criterion: "externalEvidence" },
+      { id: 22, text: vouch, criterion: "externalEvidence" },
     ],
   };
 }

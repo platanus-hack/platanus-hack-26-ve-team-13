@@ -2,7 +2,7 @@
 // reconocimiento del navegador sin cortar la conversación.
 import { CommitStrategy, RealtimeEvents, Scribe, type RealtimeConnection } from "@elevenlabs/client";
 import { KEYTERMS } from "@/lib/voice/keyterms";
-import { BrowserListener, type ListenerOptions, type SpeechListener } from "@/lib/voice/stt";
+import { BrowserListener, PAUSE_MS, type ListenerOptions, type SpeechListener } from "@/lib/voice/stt";
 
 // La respuesta se transcribe entera, en un solo segmento, cuando termina (silenceMs):
 // cortarla en cada pausa partía los números ("ochocientos setenta y seis" → "800-76")
@@ -23,6 +23,7 @@ export class ScribeListener implements SpeechListener {
   private partial = "";
   private silenceMs: number;
   private silenceTimer: ReturnType<typeof setTimeout> | null = null;
+  private pauseTimer: ReturnType<typeof setTimeout> | null = null;
   private onCommitted: (() => void) | null = null;
   private fallback: BrowserListener | null = null;
 
@@ -113,8 +114,10 @@ export class ScribeListener implements SpeechListener {
   }
 
   private update(): void {
-    this.opts.onInterim(`${this.committed}${this.partial}`.trim());
+    const text = `${this.committed}${this.partial}`.trim();
+    this.opts.onInterim(text);
     this.clearTimer();
+    if (text) this.pauseTimer = setTimeout(() => this.opts.onPause?.(text), PAUSE_MS);
     this.silenceTimer = setTimeout(() => void this.finish(), this.silenceMs);
   }
 
@@ -136,7 +139,9 @@ export class ScribeListener implements SpeechListener {
 
   private clearTimer(): void {
     if (this.silenceTimer) clearTimeout(this.silenceTimer);
+    if (this.pauseTimer) clearTimeout(this.pauseTimer);
     this.silenceTimer = null;
+    this.pauseTimer = null;
   }
 
   private switchToBrowser(error: unknown, silenceMs: number): void {

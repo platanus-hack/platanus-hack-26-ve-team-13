@@ -27,9 +27,13 @@ export const speechRecognitionSupported = () => getCtor() !== undefined;
 // Si el navegador no tiene español de Venezuela, se prueba con los siguientes
 const LANGS = ["es-VE", "es-US", "es-MX"];
 
+// Pausa corta tras la que se avisa onPause, antes de que el silencio cierre la respuesta
+export const PAUSE_MS = 600;
+
 export type ListenerOptions = {
   silenceMs: number;                     // silencio que cierra la respuesta (si start() no indica otro)
   onInterim: (text: string) => void;     // lo que va entendiendo, para mostrarlo
+  onPause?: (text: string) => void;      // tras PAUSE_MS sin hablar: la respuesta probablemente terminó
   onFinal: (text: string) => void;       // la respuesta completa
   onError: (message: string) => void;
   onEngineChange?: (engine: "scribe" | "browser") => void;
@@ -50,6 +54,7 @@ export class BrowserListener implements SpeechListener {
   private finalText = "";
   private interimText = "";
   private silenceTimer: ReturnType<typeof setTimeout> | null = null;
+  private pauseTimer: ReturnType<typeof setTimeout> | null = null;
   private langIndex = 0;
   private silenceMs: number;
 
@@ -125,12 +130,16 @@ export class BrowserListener implements SpeechListener {
 
   private armTimer(): void {
     this.clearTimer();
+    const text = `${this.finalText}${this.interimText}`.trim();
+    if (text) this.pauseTimer = setTimeout(() => this.opts.onPause?.(text), PAUSE_MS);
     this.silenceTimer = setTimeout(() => this.finish(), this.silenceMs);
   }
 
   private clearTimer(): void {
     if (this.silenceTimer) clearTimeout(this.silenceTimer);
+    if (this.pauseTimer) clearTimeout(this.pauseTimer);
     this.silenceTimer = null;
+    this.pauseTimer = null;
   }
 
   private finish(): void {

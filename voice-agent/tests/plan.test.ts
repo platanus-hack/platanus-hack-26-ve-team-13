@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { VOUCH_LATER } from "@/lib/agent/lines";
 import { buildQuestionPlan } from "@/lib/agent/plan";
 import { findTrade, TRADES } from "@/lib/agent/trades";
 
@@ -10,6 +11,8 @@ describe("findTrade", () => {
     expect(findTrade(" Costurera ")?.id).toBe("sewing");
     expect(findTrade("Programadora")?.id).toBe("programming");
     expect(findTrade("desarrollador web")?.id).toBe("programming");
+    expect(findTrade("Recepcionista")?.id).toBe("reception");
+    expect(findTrade("recepción")?.id).toBe("reception");
   });
 
   it("returns undefined for a trade not in the bank", () => {
@@ -18,8 +21,9 @@ describe("findTrade", () => {
 });
 
 describe("TRADES", () => {
-  it("has masonry and programming in depth plus light trades", () => {
+  it("has masonry, reception and programming in depth plus light trades", () => {
     expect(TRADES.find((t) => t.id === "masonry")?.depth).toBe("full");
+    expect(TRADES.find((t) => t.id === "reception")?.depth).toBe("full");
     expect(TRADES.find((t) => t.id === "programming")?.depth).toBe("full");
     expect(TRADES.filter((t) => t.depth === "light").length).toBeGreaterThanOrEqual(2);
   });
@@ -34,6 +38,25 @@ describe("TRADES", () => {
 });
 
 describe("buildQuestionPlan", () => {
+  it("short flow → only who can vouch, with the trade's own wording", () => {
+    const plan = buildQuestionPlan({ trade: "reception", yearsBand: "gt10" }, "short");
+    expect(plan.questions).toEqual([{
+      id: 22,
+      text: `¿Alguien de donde trabajabas te podría recomendar, como un doctor, tu jefe o un compañero? ${VOUCH_LATER}`,
+      criterion: "externalEvidence",
+    }]);
+    expect(buildQuestionPlan({ trade: null }, "short").questions).toEqual([]);
+  });
+
+  it("reception + >10 years → the demo script's questions", () => {
+    const plan = buildQuestionPlan({ trade: "reception", yearsBand: "gt10" });
+    expect(plan.questions.map((q) => q.text)).toEqual([
+      "Cuéntame paso a paso cómo atiendes a una persona que llega a la recepción.",
+      "¿Cómo manejas a alguien que llega molesto y exige que lo atiendan ya?",
+      "¿Alguien de donde trabajabas te podría recomendar, como un doctor, tu jefe o un compañero?",
+    ]);
+  });
+
   it("masonry + >10 years → expert-level follow-up, as in the demo script", () => {
     const plan = buildQuestionPlan({ trade: "masonry", yearsBand: "gt10" });
     expect(plan.followUpLevel).toBe("expert");

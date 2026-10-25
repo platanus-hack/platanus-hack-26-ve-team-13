@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildAssessment, keepVerbatimQuotes } from "@/lib/agent/assess";
+import { buildAssessment, buildUnscoredAssessment, keepVerbatimQuotes, UNSCORED_MODEL } from "@/lib/agent/assess";
 import type { Line } from "@/lib/agent/stage";
 import { Assessment, type ModelAssessment } from "@/lib/schema/assessment";
 import type { FormDraft } from "@/lib/schema/form";
@@ -26,7 +26,9 @@ const model: ModelAssessment = {
   pendingChecks: [{ kind: "reference", detail: "señora Carmen, Catia La Mar" }],
 };
 
-const jose: FormDraft = { trade: "masonry", yearsBand: "gt10", idStatus: "valid", tools: "lost" };
+const jose: FormDraft = {
+  trade: "masonry", yearsBand: "gt10", idStatus: "valid", tools: "lost", birthDate: "1980-03-03", phone: "04125551234",
+};
 
 describe("keepVerbatimQuotes", () => {
   it("keeps quotes the person said, ignoring case, accents and punctuation", () => {
@@ -72,5 +74,28 @@ describe("buildAssessment", () => {
     const a = buildAssessment({ form: { ...jose, tools: undefined }, history, modelAssessment: withTools, model: "test" });
     expect(a.pendingChecks.filter((c) => c.kind === "tools")).toHaveLength(1);
     expect(a.pendingChecks.find((c) => c.kind === "tools")?.detail).not.toBe("x");
+  });
+});
+
+describe("buildUnscoredAssessment (short flow)", () => {
+  const form: FormDraft = { name: "José Rodríguez", trade: "masonry", yearsBand: "gt10", tools: "lost", reference: "señora Carmen, Catia La Mar" };
+
+  it("has no scores and routes by tools and ID only", () => {
+    const a = buildUnscoredAssessment({ form });
+    expect(Assessment.safeParse(a).success).toBe(true);
+    expect(a.scores).toBeUndefined();
+    expect(a.demonstratedLevel).toBe("not_assessed");
+    expect(a.trust).toBe("declared");
+    expect(a.route).toBe("ready_with_support");
+    expect(a.model).toBe(UNSCORED_MODEL);
+    expect(buildUnscoredAssessment({ form: { ...form, tools: "has" } }).route).toBe("ready_to_match");
+    expect(buildUnscoredAssessment({ form: { trade: null } }).route).toBe("training");
+  });
+
+  it("turns the reference into a pending check", () => {
+    const a = buildUnscoredAssessment({ form, needsHuman: true });
+    expect(a.pendingChecks[0]).toEqual({ kind: "reference", detail: "señora Carmen, Catia La Mar" });
+    expect(a.needsHuman).toBe(true);
+    expect(buildUnscoredAssessment({ form: { ...form, reference: undefined } }).pendingChecks.some((c) => c.kind === "reference")).toBe(false);
   });
 });

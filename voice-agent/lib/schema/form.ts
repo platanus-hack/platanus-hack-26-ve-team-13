@@ -6,7 +6,7 @@ export const Form = z.object({
   intakeId: z.uuid(),
   name: z.string().min(1),
   lastNames: z.string().optional(),          // apellidos dentro de `name`, para separar nombres y apellidos al guardar
-  idStatus: z.enum(["valid", "expired", "lost", "none"]),
+  idStatus: z.enum(["valid", "expired", "lost", "none"]).optional(),   // la demo corta no la pregunta
   idNumber: z.string().optional(),          // dato sensible: almacenamiento restringido
   birthDate: z.iso.date().optional(),
   phone: z.string().optional(),
@@ -21,6 +21,7 @@ export const Form = z.object({
   otherSkills: z.array(z.string()).max(2).optional(),
   tools: z.enum(["has", "lost", "never_had"]).optional(),   // opcional: solo se captura si la persona lo menciona
   seeking: z.enum(["employment", "own_business", "freelance"]).optional(),
+  reference: z.string().optional(),         // quién puede dar fe de su trabajo, como lo dijo; se contacta después
 });
 
 // Durante la conversación todos los campos son opcionales

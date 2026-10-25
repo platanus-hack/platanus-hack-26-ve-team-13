@@ -4,12 +4,13 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { buildAssessment, keepVerbatimQuotes } from "@/lib/agent/assess";
 import { ASSESS_MODEL, assessConversation, extractTurn } from "@/lib/agent/claude";
-import { initialState, runTurn, type TurnState } from "@/lib/agent/stage";
+import { initialState, runTurn, type Flow, type TurnState } from "@/lib/agent/stage";
 import { Assessment } from "@/lib/schema/assessment";
 import type { FormDraft } from "@/lib/schema/form";
 
 type Fixture = {
   description: string;
+  flow?: Flow;               // por defecto "full"
   // Una lista se usa en orden cada vez que Manito hace esa pregunta (la última se repite)
   answers: Record<string, string | string[]>;
   expect: {
@@ -35,7 +36,7 @@ const MAX_TURNS = 18;
 const turnMs: number[] = [];
 
 async function converse(f: Fixture): Promise<{ state: TurnState; done: boolean }> {
-  let state = initialState();
+  let state = initialState(f.flow);
   const used: Record<string, number> = {};
   for (let i = 0; i < MAX_TURNS; i++) {
     const key = state.asking ?? "";

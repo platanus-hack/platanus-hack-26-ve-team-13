@@ -19,6 +19,7 @@ export const Extraction = z.object({
   noTrade: z.boolean(),                       // no tenía oficio o quiere aprender uno
   yearsBand: YearsBand.nullable(),
   tools: z.enum(["has", "lost", "never_had"]).nullable(),
+  reference: z.string().nullable(),           // quién puede dar fe de su trabajo
   confirmed: z.boolean().nullable(),          // respuesta a "¿Está bien?"; null si no aplica o no se entiende
   // "question": pregunta algo o se sale del tema en vez de responder;
   // "distress": peligro o necesidad urgente ahora mismo. null si responde normal.
