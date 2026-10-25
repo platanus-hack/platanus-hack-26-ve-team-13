@@ -26,11 +26,13 @@ describe("normalizeIdNumber", () => {
     ["v 15234876", "V-15234876"],
     ["15.234.876", "V-15234876"],
     ["E-82.123.456", "E-82123456"],
+    ["B-15.234.876", "V-15234876"],
+    ["Sí, vigente. B15234876.", "V-15234876"],
   ])("%s → %s", (input, expected) => {
     expect(normalizeIdNumber(input)).toBe(expected);
   });
 
-  it.each(["no me acuerdo", "123"])("drops %s", (input) => {
+  it.each(["no me acuerdo", "123", "B15234800-76"])("drops %s", (input) => {
     expect(normalizeIdNumber(input)).toBeNull();
   });
 });

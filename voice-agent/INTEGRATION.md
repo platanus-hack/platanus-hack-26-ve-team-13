@@ -29,6 +29,7 @@ appears.
 | `@anthropic-ai/sdk` | dependency | ^1.3.0 |
 | `vitest` | devDependency | ^4.1.12 (5.x needs @types/node ≥22; `/manito` pins ^20) |
 | `tsx` | devDependency | ^4.23.15 |
+| `@elevenlabs/client` | dependency | ^1.30.0 (Scribe realtime speech-to-text in the browser) |
 
 Scripts to add: `test` (`vitest run`), `test:watch` (`vitest`), and `eval`
 (`node --env-file=.env.local --import tsx scripts/eval.ts`; calls Claude).
@@ -44,7 +45,15 @@ Scripts to add: `test` (`vitest run`), `test:watch` (`vitest`), and `eval`
 ## Environment variables
 
 `ANTHROPIC_API_KEY`, `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`: add to
-`/manito/.env.local` and to the deployment.
+`/manito/.env.local` and to the deployment. Optional: `ELEVENLABS_MODEL_ID`
+(voice model, default `eleven_flash_v2_5`).
+
+The ElevenLabs key needs the **Text to Speech** and **Speech to Text**
+permissions (voices read-only is enough for the rest). Without Speech to Text,
+`/api/voice/scribe-token` fails and the page falls back to Chrome's recognition.
+
+Voice routes to move with the agent routes: `app/api/voice/tts` and
+`app/api/voice/scribe-token`.
 
 ## Config differences from `/manito`
 

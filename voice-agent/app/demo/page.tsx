@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { OPENING_LINE, initialState, runTurn, type TurnResult, type TurnState } from "@/lib/agent/stage";
 import type { Assessment } from "@/lib/schema/assessment";
 import type { FormDraft } from "@/lib/schema/form";
-import { Listener, speechRecognitionSupported } from "@/lib/voice/stt";
+import { ScribeListener } from "@/lib/voice/scribe";
 import { clearCache, prefetch, speak, stopSpeaking } from "@/lib/voice/tts";
 import { FormPanel } from "./FormPanel";
 import { ProfileCard } from "./ProfileCard";
@@ -62,6 +62,7 @@ export default function DemoPage() {
   const [voiceOn, setVoiceOn] = useState(true);
   const [micOn, setMicOn] = useState(true);
   const [timings, setTimings] = useState<Timing[]>([]);
+  const [engine, setEngine] = useState<"scribe" | "browser">("scribe");
 
   // Las funciones asíncronas leen siempre el valor actual desde aquí
   const stateRef = useRef<TurnState | null>(null);
@@ -69,7 +70,7 @@ export default function DemoPage() {
   const runRef = useRef(0); // cambia al reiniciar, para descartar respuestas viejas
   const voiceOnRef = useRef(voiceOn);
   const micOnRef = useRef(micOn);
-  const listenerRef = useRef<Listener | null>(null);
+  const listenerRef = useRef<ScribeListener | null>(null);
   const handleRef = useRef<(text: string) => void>(() => {});
   const transcriptEnd = useRef<HTMLDivElement>(null);
 
@@ -78,13 +79,14 @@ export default function DemoPage() {
 
   useEffect(() => {
     prefetch(OPENING_LINE); // que el saludo suene al instante
-    listenerRef.current = new Listener({
+    listenerRef.current = new ScribeListener({
       silenceMs: SILENCE_MS.register,
       onInterim: setInterim,
       onFinal: (text) => handleRef.current(text),
       onError: (msg) => { setError(msg); setStatus((s) => (s === "listening" ? "waiting" : s)); },
+      onEngineChange: setEngine,
     });
-    return () => { listenerRef.current?.cancel(); stopSpeaking(); };
+    return () => { listenerRef.current?.close(); stopSpeaking(); };
   }, []);
 
   useEffect(() => {
@@ -93,7 +95,7 @@ export default function DemoPage() {
 
   function listen() {
     setInterim("");
-    if (micOnRef.current && speechRecognitionSupported()) {
+    if (micOnRef.current) {
       setStatus("listening");
       listenerRef.current?.start(silenceFor(stateRef.current?.asking ?? null));
     } else {
@@ -113,6 +115,8 @@ export default function DemoPage() {
     stateRef.current = s;
     setTurn(s);
     setError(null);
+    // La sesión de Scribe se abre mientras suena el saludo
+    if (micOnRef.current) listenerRef.current?.prepare();
     await say(OPENING_LINE, run);
     if (run === runRef.current) listen();
   }
@@ -174,8 +178,12 @@ export default function DemoPage() {
     });
     busyRef.current = false;
     if (run !== runRef.current) return;
-    if (result.done) await assess(result.state, run);
-    else listen();
+    if (result.done) {
+      listenerRef.current?.close(); // libera el micrófono
+      await assess(result.state, run);
+    } else {
+      listen();
+    }
   }
   // El micrófono llama a la versión más reciente del manejador
   useEffect(() => { handleRef.current = handleUserText; });
@@ -191,7 +199,7 @@ export default function DemoPage() {
 
   function reset() {
     runRef.current++;
-    listenerRef.current?.cancel();
+    listenerRef.current?.close();
     stopSpeaking();
     clearCache();
     prefetch(OPENING_LINE);
@@ -228,6 +236,7 @@ export default function DemoPage() {
           <p className="text-sm opacity-60">
             <span className={`mr-1.5 inline-block h-2 w-2 rounded-full align-middle ${status === "listening" ? "animate-pulse bg-red-500" : status === "speaking" ? "bg-green-500" : "bg-black/20 dark:bg-white/30"}`} />
             {STATUS_LABEL[status]}
+            {micOn && <span className="ml-2 opacity-60">· reconocimiento: {engine === "scribe" ? "Scribe" : "navegador"}</span>}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-sm">

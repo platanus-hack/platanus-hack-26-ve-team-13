@@ -32,9 +32,19 @@ export type ListenerOptions = {
   onInterim: (text: string) => void;     // lo que va entendiendo, para mostrarlo
   onFinal: (text: string) => void;       // la respuesta completa
   onError: (message: string) => void;
+  onEngineChange?: (engine: "scribe" | "browser") => void;
 };
 
-export class Listener {
+// Lo que la página necesita de cualquier reconocedor (Scribe o el del navegador)
+export interface SpeechListener {
+  readonly engine: "scribe" | "browser";
+  start(silenceMs?: number): void;
+  sendNow(): void;
+  cancel(): void;
+}
+
+export class BrowserListener implements SpeechListener {
+  readonly engine = "browser";
   private rec: Recognition | null = null;
   private active = false;
   private finalText = "";

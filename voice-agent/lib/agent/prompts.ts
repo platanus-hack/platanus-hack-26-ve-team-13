@@ -3,7 +3,7 @@ import type { Line } from "@/lib/agent/stage";
 import { findTrade, TRADES } from "@/lib/agent/trades";
 import type { FormDraft } from "@/lib/schema/form";
 
-export const TURN_PROMPT_VERSION = "turn-v4";
+export const TURN_PROMPT_VERSION = "turn-v5";
 export const ASSESS_PROMPT_VERSION = "assess-v3";
 
 const tradeList = TRADES.map((t) => `- ${t.id}: ${t.label} (${t.aliases.slice(0, 4).join(", ")})`).join("\n");
@@ -17,6 +17,7 @@ Extrae solo lo que la persona dijo en esta respuesta. Nunca completes un campo p
 - name: nombre y apellido, tal como los dijo.
 - birthDate: tu mejor interpretación de la fecha de nacimiento en formato AAAA-MM-DD, aunque la diga de forma poco común (por ejemplo, "el 3 de marzo del 80" → "1980-03-03"). Si no dice el día o el mes, cópiala tal como la dijo; nunca inventes partes que falten. Manito se la lee de vuelta para confirmarla.
 - idStatus: "valid" si tiene cédula vigente o dice que sí tiene; "expired" si está vencida; "lost" si la perdió; "none" si no tiene.
+- La respuesta viene de reconocimiento de voz: en la cédula puede aparecer "B" en vez de "V" (suenan igual); la letra es V para venezolanos o E para extranjeros.
 - idNumber y phone: tu mejor interpretación en dígitos, aunque los diga en palabras o por partes (por ejemplo, "cero cuatro doce, cinco cinco cinco, doce treinta y cuatro" → "0412 555 1234"). Manito se los lee de vuelta para confirmarlos.
 - confirmed: solo si Manito acaba de leer datos y preguntó "¿Está bien?". true si la persona dice que están bien; false si dice que no o corrige algo. En cualquier otro caso, null. Si corrige un dato, pon el dato corregido en su campo.
 - trade: el oficio que tenía antes del terremoto. Si coincide con uno de esta lista, usa su id; si no, escribe el oficio en español y en minúsculas:

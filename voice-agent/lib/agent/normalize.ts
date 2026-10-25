@@ -33,13 +33,16 @@ export function normalizeDate(input: string): string | null {
   return null;
 }
 
-// "V-15.234.876", "v 15234876", "15.234.876" → "V-15234876"; extranjeros "E-…"
+// "V-15.234.876", "v 15234876", "15.234.876" → "V-15234876"; extranjeros "E-…".
+// El reconocimiento de voz escribe "B" por "V" (suenan igual) y a veces parte los
+// dígitos ("B15234800-76"): si no queda una cédula válida, mejor vacío que equivocada.
 export function normalizeIdNumber(input: string): string | null {
-  const m = input.toUpperCase().match(/\b([VE])?\s*-?\s*(\d[\d.\s]{4,12}\d)\b/);
+  const m = input.toUpperCase().match(/\b([VEB])?\s*-?\s*(\d[\d.\s-]{4,14}\d)\b/);
   if (!m) return null;
   const digits = m[2].replace(/\D/g, "");
   if (digits.length < 6 || digits.length > 9) return null;
-  return `${m[1] ?? "V"}-${digits}`;
+  const letter = m[1] === "E" ? "E" : "V";
+  return `${letter}-${digits}`;
 }
 
 // "0412-555-1234", "+58 412 555 1234", "412 5551234" → "04125551234"
