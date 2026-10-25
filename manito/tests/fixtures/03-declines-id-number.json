@@ -1,0 +1,17 @@
+{
+  "description": "Declines to give the cédula number; trade not in the bank (generic questions)",
+  "answers": {
+    "nameBirth": "Ana Morales, el 12 de agosto de 1975.",
+    "id": "Sí tengo cédula vigente, pero prefiero no darte el número.",
+    "phone": "0424-555-3344.",
+    "trade": "Era cocinera, tenía un puestico de empanadas, como siete años.",
+    "q18": "Preparo la masa con harina, agua y sal, la amaso hasta que no se pegue, hago las bolitas, las aplasto en la bolsa, las relleno, las cierro y las frío en aceite bien caliente.",
+    "q19": "Que el aceite se enfríe, entonces las empanadas chupan aceite. Por eso frío pocas a la vez.",
+    "q22": "Sí, la señora Rosa, de la panadería de al lado, me compraba todos los días."
+  },
+  "expect": {
+    "form": { "name": "Ana Morales", "idStatus": "valid", "yearsBand": "3to10" },
+    "absent": ["idNumber"],
+    "done": true
+  }
+}

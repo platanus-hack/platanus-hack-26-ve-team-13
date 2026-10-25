@@ -1,0 +1,19 @@
+{
+  "description": "Gives date and numbers in unusual formats: fields extracted or left empty, never invented",
+  "answers": {
+    "nameBirth": "Pedro Gómez, nací en el 80, en marzo.",
+    "nameBirth_retry": "Uy, el día exacto no lo recuerdo, fue en marzo del 80.",
+    "id": "Sí tengo, vigente. Es la quince millones doscientos treinta y cuatro mil ochocientos setenta y seis.",
+    "phone": "Cero cuatro doce, cinco cinco cinco, doce treinta y cuatro.",
+    "trade": "Albañil, como quince años ya.",
+    "q18": "Mojo bien la pared, pongo las maestras a plomo, hago la mezcla de cemento y arena, la lanzo con la cuchara y la emparejo con el codal. Al final paso la llana.",
+    "q19": "Le echo más cemento y arena para darle cuerpo, si no se cae de la pared.",
+    "q22": "El señor Ramón, de La Lucha, le hice una casa entera. Él te puede decir."
+  },
+  "expect": {
+    "form": { "name": "Pedro Gómez", "idStatus": "valid", "trade": "masonry", "yearsBand": "gt10" },
+    "absent": ["birthDate"],
+    "absentOr": { "idNumber": "V-15234876", "phone": "04125551234" },
+    "done": true
+  }
+}

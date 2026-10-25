@@ -1,0 +1,18 @@
+{
+  "description": "Asks questions back instead of answering, then answers: fixed reply, no 'no te entendí', nothing lost",
+  "answers": {
+    "nameBirth": "Luisa Campos, nací el 8 de junio de 1985.",
+    "id": "Sí, vigente. V-17.333.444.",
+    "phone": ["¿Y para qué necesitan mi número?", "Ah bueno. Al 0412-555-8899."],
+    "trade": ["¿Me van a dar trabajo?", "Costurera, como cinco años. Tengo mi máquina."],
+    "q18": "Mido el largo con la persona puesta el pantalón, marco con tiza, corto dejando tela para el doblez, plancho el doblez y lo coso a máquina.",
+    "q19": "Si la tela es un jean grueso uso una aguja más gruesa y bajo la velocidad de la máquina, y aplano la costura con un martillo para que pase.",
+    "q22": "Sí, la señora Elena, de La Lucha, le arreglo la ropa a toda su familia."
+  },
+  "expect": {
+    "form": { "name": "Luisa Campos", "phone": "04125558899", "trade": "sewing", "yearsBand": "3to10" },
+    "manitoSays": ["Eso te lo responde una persona del equipo"],
+    "needsHuman": false,
+    "done": true
+  }
+}

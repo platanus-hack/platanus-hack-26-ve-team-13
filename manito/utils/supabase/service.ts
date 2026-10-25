@@ -19,7 +19,7 @@ export async function sendDatabaseRequest(body: RequestBody) {
         nombres: body.Persona.nombres,
         apellidos: body.Persona.apellidos,
         estado_cedula: body.Persona.estado_cedula,
-        numero_cedula: ['vigente', 'vencida'].includes(body.Persona.estado_cedula) ? body.Persona.numero_cedula : null,
+        numero_cedula: body.Persona.numero_cedula,
         fecha_nacimiento: body.Persona.fecha_nacimiento,
         telefono: body.Persona.telefono,
         pertenece_refugio: body.Persona.pertenece_refugio,
@@ -38,6 +38,7 @@ export async function sendDatabaseRequest(body: RequestBody) {
     }
 
     const personaId = persona.id; // UUID retornado de Postgres
+    console.info('[db] Persona insertada en Supabase:', personaId);
 
     // 2. Inicializar documento en MongoDB enlazado por persona_id
     await mongoClient.connect();
@@ -65,9 +66,12 @@ export async function sendDatabaseRequest(body: RequestBody) {
           nivel_certeza_oficio: body.Perfil.validacion_tecnica_ia.resumen_validacion?.nivel_certeza_oficio,
           puntuacion_global: body.Perfil.validacion_tecnica_ia.resumen_validacion?.puntuacion_global,
           resumen_ia: body.Perfil.validacion_tecnica_ia.resumen_validacion?.resumen_ia
-        }
+        },
+        evaluacion_detallada: body.Perfil.validacion_tecnica_ia.evaluacion_detallada
       }
     });
+
+    console.info('[db] Perfil insertado en Mongo para', personaId);
 
     return NextResponse.json(
       {

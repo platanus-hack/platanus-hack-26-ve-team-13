@@ -1,1 +1,1 @@
-export type BusquedaLaboral = 'empleo' | 'negocio_propio';
+export type BusquedaLaboral = 'empleo' | 'negocio_propio' | 'independiente';

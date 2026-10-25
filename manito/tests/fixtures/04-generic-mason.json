@@ -1,0 +1,18 @@
+{
+  "description": "Mason, >10 years, generic answers",
+  "answers": {
+    "nameBirth": "Ramón Díaz, nací el 20 de octubre de 1970.",
+    "id": "Sí, vigente, V-8.765.432.",
+    "phone": "0412-555-7788.",
+    "trade": "Albañil, más de veinte años. Tengo mis herramientas.",
+    "q18": "Bueno, uno hace de todo un poco, lo normal, lo que haya que hacer.",
+    "q19": "Eso depende, uno ahí lo va arreglando.",
+    "q22": "La gente del barrio me conoce."
+  },
+  "expect": {
+    "form": { "trade": "masonry", "yearsBand": "gt10" },
+    "maxScore": { "knowledge": 1 },
+    "levelVsYears": ["below"],
+    "route": ["human_review"]
+  }
+}

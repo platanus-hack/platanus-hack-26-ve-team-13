@@ -1,0 +1,18 @@
+{
+  "description": "Electrician with lost cédula, good answers, reference and photos",
+  "answers": {
+    "nameBirth": "Daniel Herrera, el 14 de abril de 1988.",
+    "id": "La perdí en el terremoto.",
+    "phone": "0412-555-4455.",
+    "trade": "Electricista, como ocho años.",
+    "q18": "Primero bajo el breaker del circuito en el tablero y compruebo con el multímetro que no haya tensión. Identifico fase, neutro y tierra, conecto cada cable a su borne, meto el tomacorriente en el cajetín, pongo la tapa y pruebo.",
+    "q19": "Depende de la carga. Para tomacorrientes normales uso calibre 12, y para un aire acondicionado calibre 10 en un circuito aparte con su propio breaker.",
+    "q22": "Sí, el señor Luis Peña, de La Lucha, le hice toda la instalación de su casa. Y tengo fotos de mis trabajos en el teléfono, te las puedo mandar."
+  },
+  "expect": {
+    "form": { "idStatus": "lost", "trade": "electrical", "yearsBand": "3to10" },
+    "trust": ["with_reference"],
+    "route": ["ready_with_support"],
+    "pendingKinds": ["reference", "photo"]
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "description": "María, programmer >10 years, lost her laptop (draft persona for a programmer demo)",
+  "answers": {
+    "nameBirth": "María Fernández, nací el 15 de julio de 1990.",
+    "id": "Sí, vigente. V-20.456.789.",
+    "phone": "Al 0414-555-6789.",
+    "trade": "Soy programadora, hace más de diez años. Perdí mi laptop en el terremoto.",
+    "q18": "Primero le pido al cliente que me explique qué pasó y trato de reproducir el error. Reviso los logs y la consola, ubico la parte del código que falla, hago el arreglo en una rama aparte, corro las pruebas y, si todo pasa, hago el deploy y le confirmo al cliente.",
+    "q19": "Agrego más logs en esa parte, reviso qué datos o configuración son distintos en producción, y si hace falta copio esos datos a un ambiente de prueba para reproducirlo.",
+    "q22": "Sí, el señor Andrés, de una ferretería en Catia La Mar. Le hice el sistema de inventario el año pasado. Te paso su número."
+  },
+  "expect": {
+    "form": {
+      "name": "María Fernández",
+      "lastNames": "Fernández",
+      "birthDate": "1990-07-15",
+      "idStatus": "valid",
+      "idNumber": "V-20456789",
+      "phone": "04145556789",
+      "trade": "programming",
+      "yearsBand": "gt10",
+      "tools": "lost"
+    },
+    "trust": ["with_reference"],
+    "demonstratedLevel": ["expert"],
+    "levelVsYears": ["matches"],
+    "route": ["ready_with_support"],
+    "pendingKinds": ["reference"],
+    "needsHuman": false
+  }
+}
