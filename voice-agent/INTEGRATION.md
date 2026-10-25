@@ -4,12 +4,47 @@ Running list of what must change when `/voice-agent` merges into `/manito`
 (PRD section 12, phase 5). Add an entry the moment a difference or assumption
 appears.
 
+## Mapping to Oli's domain (`manito/domain`)
+
+Decided 2026-10-24. Our Zod schemas stay as the agent's internal format;
+`lib/agent/toDomain.ts` translates `{ form, assessment }` into `IPersona`
+(Supabase) and `IPerfil` (Mongo). **Every value stored in Oli's DB is in
+Spanish.** `intakeId` becomes `Persona.id` and `Perfil.persona_id`.
+
+- [x] **Changes made in `manito/domain`** (tell Oli):
+  - `BusquedaLaboral` adds `'independiente'` (our `freelance`).
+  - `IReferencia.telefono` is optional; adds `detalle?`.
+  - `IValidacionTecnicaIA` adds `evaluacion_detallada?: IEvaluacionDetallada`
+    (full assessment in Spanish: scores with quotes, level, trust, route,
+    `necesita_humano`, pending checks), with new enum types `NivelConfianza`,
+    `NivelDemostrado`, `NivelVsExperiencia`, `RutaAtencion`, `TipoVerificacion`.
+- [x] **`resumen_validacion`:** trust with_reference/verified → `alto`,
+  probed → `medio`, declared → `dudoso`; `puntuacion_global` = sum of the four
+  scores (0–12); `resumen_ia` = observations joined.
+- [ ] **Fixed values for required fields the demo doesn't ask** (`SIN_DATO` in
+  `toDomain.ts`): `fecha_nacimiento` 1900-01-01 if declined, `estado_vivienda`
+  `refugio`, `nivel_estudio` `primaria`, `disponibilidad_laboral` `solo_local`,
+  `busqueda_laboral` `empleo`, `historial_laboral` empty,
+  `negocio_propio.tuvo_negocio` false, `referencias[].relacion` /
+  `tiempo_experiencia` / `tiene_herramientas` `"sin_dato"`. Replace once Oli
+  makes these optional.
+- [ ] **Name split** is a heuristic (`splitName`): 1–3 words → first word is
+  `nombres`; 4+ → first two. Better: have Claude extract names and surnames
+  separately.
+- [ ] **`oficio_principal`** strings: `nombre` is the trade bank's Spanish label
+  (`albañil`) or what the person said, `sin_oficio` when there is no trade;
+  `tiempo_experiencia` `menos_de_1`/`1_a_3`/`3_a_10`/`mas_de_10`;
+  `tiene_herramientas` `tiene`/`perdidas`/`nunca_tuvo`. Confirm with Oli.
+- [ ] **Housing:** our `rented`/`relative` map to the `_buen_estado` variants;
+  we don't ask about damage there.
+- [ ] **Import path:** `toDomain.ts` imports `../../../manito/domain/...`;
+  change to `@/domain/...` when moving to `/manito`.
+
 ## Assumptions about Oli's side
 
-- [ ] **Form field names and enums** (`lib/schema/form.ts`) follow PRD section 9
-  and have not been confirmed with Oli yet.
-- [ ] **Persistence:** `persistIntake()` in `lib/agent/persist.ts` is a mock that
-  only logs. Needs Oli's endpoint or function, auth and response shape.
+- [ ] **Persistence:** `persistIntake()` in `lib/agent/persist.ts` builds Persona
+  and Perfil with `toDomain()` and only logs. Oli writes the route that saves
+  them to Supabase and Mongo; then `persistIntake()` calls it.
 - [ ] **Assessment schema differs from PRD section 9:** `pendingChecks[].kind`
   adds `"tools"` (code asks about tools when the person never mentioned them).
   Oli's dashboard must accept it.
