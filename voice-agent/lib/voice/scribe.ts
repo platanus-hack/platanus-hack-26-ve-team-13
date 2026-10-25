@@ -4,10 +4,10 @@ import { CommitStrategy, RealtimeEvents, Scribe, type RealtimeConnection } from 
 import { KEYTERMS } from "@/lib/voice/keyterms";
 import { BrowserListener, type ListenerOptions, type SpeechListener } from "@/lib/voice/stt";
 
-// Scribe cierra segmentos tras esta pausa; el fin de la respuesta lo decide silenceMs
-const SEGMENT_SILENCE_SECS = 0.8;
-// Al terminar, cuánto esperar el texto final del último segmento
-const LAST_SEGMENT_WAIT_MS = 700;
+// La respuesta se transcribe entera, en un solo segmento, cuando termina (silenceMs):
+// cortarla en cada pausa partía los números ("ochocientos setenta y seis" → "800-76")
+// Al terminar, cuánto esperar el texto final
+const LAST_SEGMENT_WAIT_MS = 1500;
 
 async function fetchToken(): Promise<string> {
   const r = await fetch("/api/voice/scribe-token", { method: "POST" });
@@ -77,8 +77,7 @@ export class ScribeListener implements SpeechListener {
         token: await fetchToken(),
         modelId: "scribe_v2_realtime",
         languageCode: "es",
-        commitStrategy: CommitStrategy.VAD,
-        vadSilenceThresholdSecs: SEGMENT_SILENCE_SECS,
+        commitStrategy: CommitStrategy.MANUAL,
         keyterms: KEYTERMS,
         microphone: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       });
