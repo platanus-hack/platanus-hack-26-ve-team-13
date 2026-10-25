@@ -1,4 +1,3 @@
-import { ObjectId } from 'mongodb';
 import { IOficioPrincipal } from '../interfaces/IOficioPrincipal';
 import { INegocioPropio } from '../interfaces/INegocioPropio';
 import { IReferencia } from '../interfaces/IReferencia';
@@ -9,7 +8,6 @@ import { IPerfil } from '../interfaces/IPerfil';
 import { BusquedaLaboral } from '../enums/Perfil/BusquedaLaboral';
 
 export class Perfil implements IPerfil {
-  _id?: ObjectId;
   persona_id: string;
   oficio_principal: IOficioPrincipal;
   oficios_secundarios: string[];
@@ -21,7 +19,6 @@ export class Perfil implements IPerfil {
   fechas: IFechasPerfil;
 
   constructor(data: IPerfil) {
-    this._id = data._id;
     this.persona_id = data.persona_id;
     this.oficio_principal = data.oficio_principal;
     this.oficios_secundarios = data.oficios_secundarios || [];
@@ -34,12 +31,5 @@ export class Perfil implements IPerfil {
       creado_en: data.fechas?.creado_en ? new Date(data.fechas.creado_en) : new Date(),
       actualizado_en: data.fechas?.actualizado_en ? new Date(data.fechas.actualizado_en) : new Date(),
     };
-  }
-
-  // Útil para realizar db.collection.insertOne(perfil.toDocument())
-  toDocument(): Omit<IPerfil, '_id'> {
-    const doc: any = { ...this };
-    delete doc._id;
-    return doc;
   }
 }
