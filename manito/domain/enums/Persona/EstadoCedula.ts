@@ -1,0 +1,1 @@
+export type EstadoCedula = 'vigente' | 'vencida' | 'perdida' | 'no_tiene';
