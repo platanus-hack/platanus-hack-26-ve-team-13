@@ -1,8 +1,31 @@
 # Integration notes
 
-Running list of what must change when `/voice-agent` merges into `/manito`
-(PRD section 12, phase 5). Add an entry the moment a difference or assumption
-appears.
+`/voice-agent` was merged into `/manito` on 2026-10-25 (PRD section 12, phase 5).
+This file keeps what was decided along the way and what is still open with Oli.
+Add an entry the moment a difference or assumption appears.
+
+## Open with Oli (after the merge)
+
+- [ ] **`utils/supabase/service.ts` now also saves
+  `validacion_tecnica_ia.evaluacion_detallada`** (one line, added by us): without
+  it the full assessment was dropped and only `resumen_validacion` reached Mongo.
+- [ ] **`next build` fails without DB env vars:** `app/api/registro/route.ts`
+  and `service.ts` create the Supabase and Mongo clients at import time, and
+  both throw on an empty URL. `persistIntake()` imports the service lazily and
+  falls back to a log-only mock when `NEXT_PUBLIC_SUPABASE_URL` or
+  `MONGODB_URI` is missing, but `/api/registro` still breaks the build.
+- [ ] **Shared `MongoClient` closed in `finally`:** two concurrent requests can
+  close each other's connection. Suggest one client per process, never closed.
+- [ ] **`Persona.id` comes from Supabase:** the insert ignores our `intakeId`;
+  `persistIntake()` returns the generated `persona_id`. `fechas` are not saved.
+- [ ] **`Persona.numero_cedula` is `NOT NULL` in Supabase** although the domain
+  makes it optional. Workaround: `toDomain` sends `SIN_DATO.numero_cedula`
+  (`"00000000"`) when the person gave none, and `service.ts` now passes the
+  number through instead of nulling it for `perdida`/`no_tiene`. Revert both
+  once the column is nullable. `telefono`, `refugio` and `direccion` may hit
+  the same constraint.
+- [ ] **Lint:** 3 `no-explicit-any` errors in `api/registro/route.ts`,
+  `app/page.tsx` and `service.ts`.
 
 ## Mapping to Oli's domain (`manito/domain`)
 
@@ -38,14 +61,15 @@ Spanish.** `intakeId` becomes `Persona.id` and `Perfil.persona_id`.
   `tiene_herramientas` `tiene`/`perdidas`/`nunca_tuvo`. Confirm with Oli.
 - [ ] **Housing:** our `rented`/`relative` map to the `_buen_estado` variants;
   we don't ask about damage there.
-- [ ] **Import path:** `toDomain.ts` imports `../../../manito/domain/...`;
-  change to `@/domain/...` when moving to `/manito`.
+- [x] **Import path:** `toDomain.ts` imports `@/domain/...`.
 
 ## Assumptions about Oli's side
 
-- [ ] **Persistence:** `persistIntake()` in `lib/agent/persist.ts` builds Persona
-  and Perfil with `toDomain()` and only logs. Oli writes the route that saves
-  them to Supabase and Mongo; then `persistIntake()` calls it.
+- [x] **Persistence:** `persistIntake()` in `lib/agent/persist.ts` builds Persona
+  and Perfil with `toDomain()` and calls Oli's `sendDatabaseRequest()`
+  (`utils/supabase/service.ts`). Without DB env vars it only logs. If saving
+  fails, `/api/agent/assess` still returns the assessment with
+  `persisted: false`.
 - [ ] **Assessment schema differs from PRD section 9:** `pendingChecks[].kind`
   adds `"tools"` (code asks about tools when the person never mentioned them)
   and `"registration"` (cédula, birth date or phone not taken; stored as
@@ -75,7 +99,7 @@ Spanish.** `intakeId` becomes `Persona.id` and `Perfil.persona_id`.
 - [ ] **Distress line** (`DISTRESS_REPLY` in `lib/agent/lines.ts`) is a draft:
   Impaktemos must approve the wording and the emergency number.
 
-## Dependencies to add to `/manito/package.json`
+## Dependencies added to `/manito/package.json`
 
 | Package | Kind | Version here |
 | --- | --- | --- |
@@ -85,8 +109,9 @@ Spanish.** `intakeId` becomes `Persona.id` and `Perfil.persona_id`.
 | `tsx` | devDependency | ^4.23.15 |
 | `@elevenlabs/client` | dependency | ^1.30.0 (Scribe realtime speech-to-text in the browser) |
 
-Scripts to add: `test` (`vitest run`), `test:watch` (`vitest`), and `eval`
-(`node --env-file=.env.local --import tsx scripts/eval.ts`; calls Claude).
+Scripts added: `test` (`vitest run`), `test:watch` (`vitest`), `eval`
+(`node --env-file=.env.local --import tsx scripts/eval.ts`; calls Claude) and
+`chat`.
 
 ## Claude API usage
 
@@ -98,32 +123,26 @@ Scripts to add: `test` (`vitest run`), `test:watch` (`vitest`), and `eval`
 
 ## Environment variables
 
-`ANTHROPIC_API_KEY`, `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`: add to
-`/manito/.env.local` and to the deployment. Optional: `ELEVENLABS_SPEED` (default 1.1), `ELEVENLABS_MODEL_ID`
-(voice model, default `eleven_flash_v2_5`).
+`ANTHROPIC_API_KEY`, `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`, plus Oli's
+`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (or
+`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`), `MONGODB_URI` and optional
+`MONGODB_DB_NAME`: in `/manito/.env.local` and in the deployment (see
+`.env.local.example`). Optional: `ELEVENLABS_SPEED` (default 1.1),
+`ELEVENLABS_MODEL_ID` (voice model, default `eleven_flash_v2_5`).
 
 The ElevenLabs key needs the **Text to Speech** and **Speech to Text**
 permissions (voices read-only is enough for the rest). Without Speech to Text,
 `/api/voice/scribe-token` fails and the page falls back to Chrome's recognition.
 
-Voice routes to move with the agent routes: `app/api/voice/tts` and
-`app/api/voice/scribe-token`.
+## What the merge changed in `/manito`
 
-## Config differences from `/manito`
-
-- **`.gitignore`:** adds `!.env.local.example` after `.env*`, so the example
-  env file is committed. `/manito` needs the same line once it has one.
-- **`vitest.config.mts`:** new file; move it to `/manito`'s root.
-- **`app/layout.tsx`:** voice-agent's own root layout (`lang="es"`, no Geist
-  fonts). Drop it at merge; `/demo` will use `/manito`'s layout, so check the
-  page still looks right there.
-- **`package.json`:** `dev` and `start` use port 3001 here; don't copy that.
-
-## Routes to move
-
-- `app/demo` → `/manito/app/demo`
-- `app/api/agent/turn` and `app/api/agent/assess` → `/manito/app/api/agent/*`.
-  Both are `POST`, so they are never cached under `cacheComponents`; no
-  route config needed.
+- **`.gitignore`:** `!.env.local.example` after `.env*`, so the example env
+  file is committed.
+- **`vitest.config.mts`** at the root; tests in `tests/`, scripts in `scripts/`.
+- **`app/layout.tsx`:** voice-agent's layout was dropped; `/manito`'s now has
+  `lang="es"` and the title "Manito".
+- **Routes moved:** `app/demo`, `app/api/agent/{turn,assess}` and
+  `app/api/voice/{tts,scribe-token}`. All API routes are `POST`, so they are
+  never cached under `cacheComponents`.
 - `lib/schema/extraction.ts` is internal to the agent (what Claude returns per
   turn); it doesn't need to match anything on Oli's side.

@@ -19,6 +19,7 @@ export async function POST(request: Request) {
     return Response.json({ error: z.prettifyError(body.error) }, { status: 400 });
   }
   const { form, history, needsHuman, flow } = body.data;
+  console.info("[assess] start", { flow, turns: history.length, name: form.name, trade: form.trade });
 
   let assessment;
   if (flow === "short") {
@@ -36,8 +37,15 @@ export async function POST(request: Request) {
   // se muestra la evaluación pero no se guarda
   const fullForm = Form.safeParse({ ...form, intakeId: form.intakeId ?? crypto.randomUUID() });
   if (!fullForm.success) {
+    console.warn("[assess] form incompleto, no se guarda:\n" + z.prettifyError(fullForm.error));
     return Response.json({ assessment, persisted: false, formErrors: z.prettifyError(fullForm.error) });
   }
-  await persistIntake({ form: fullForm.data, assessment });
-  return Response.json({ assessment, persisted: true });
+  // Si falla la base, la persona igual ve su evaluación
+  try {
+    const { intakeId } = await persistIntake({ form: fullForm.data, assessment });
+    return Response.json({ assessment, persisted: true, intakeId });
+  } catch (error) {
+    console.error("[persistIntake]", error);
+    return Response.json({ assessment, persisted: false });
+  }
 }

@@ -1,17 +1,16 @@
 // Traduce el formulario y la evaluación del agente al dominio de Oli (Persona en Supabase,
 // Perfil en Mongo). Todo valor que se guarda en su base va en español.
-// Ruta relativa hasta mover todo a /manito; ahí pasa a ser "@/domain/..." (ver INTEGRATION.md).
-import type { BusquedaLaboral } from "../../../manito/domain/enums/Perfil/BusquedaLaboral";
-import type { NivelCerteza } from "../../../manito/domain/enums/Perfil/NivelCerteza";
-import type { DisponibilidadLaboral } from "../../../manito/domain/enums/Persona/DisponibilidadLaboral";
-import type { EstadoCedula } from "../../../manito/domain/enums/Persona/EstadoCedula";
-import type { EstadoVivienda } from "../../../manito/domain/enums/Persona/EstadoVivienda";
-import type { NivelEstudio } from "../../../manito/domain/enums/Persona/NivelEstudio";
-import type { Refugio } from "../../../manito/domain/enums/Persona/Refugio";
-import type { IEvaluacionDetallada, IPuntaje } from "../../../manito/domain/interfaces/IEvaluacionDetallada";
-import type { IPerfil } from "../../../manito/domain/interfaces/IPerfil";
-import type { IPersona } from "../../../manito/domain/interfaces/IPersona";
-import type { IReferencia } from "../../../manito/domain/interfaces/IReferencia";
+import type { BusquedaLaboral } from "@/domain/enums/Perfil/BusquedaLaboral";
+import type { NivelCerteza } from "@/domain/enums/Perfil/NivelCerteza";
+import type { DisponibilidadLaboral } from "@/domain/enums/Persona/DisponibilidadLaboral";
+import type { EstadoCedula } from "@/domain/enums/Persona/EstadoCedula";
+import type { EstadoVivienda } from "@/domain/enums/Persona/EstadoVivienda";
+import type { NivelEstudio } from "@/domain/enums/Persona/NivelEstudio";
+import type { Refugio } from "@/domain/enums/Persona/Refugio";
+import type { IEvaluacionDetallada, IPuntaje } from "@/domain/interfaces/IEvaluacionDetallada";
+import type { IPerfil } from "@/domain/interfaces/IPerfil";
+import type { IPersona } from "@/domain/interfaces/IPersona";
+import type { IReferencia } from "@/domain/interfaces/IReferencia";
 import { findTrade } from "@/lib/agent/trades";
 import type { Assessment } from "@/lib/schema/assessment";
 import type { Form } from "@/lib/schema/form";
@@ -21,6 +20,7 @@ import type { Form } from "@/lib/schema/form";
 export const SIN_DATO = {
   fecha_nacimiento: new Date("1900-01-01T00:00:00Z"),   // fecha centinela: no la dio
   estado_cedula: "no_tiene" as EstadoCedula,
+  numero_cedula: "00000000",   // Supabase exige numero_cedula NOT NULL; provisorio hasta que Oli lo haga opcional
   estado_vivienda: "refugio" as EstadoVivienda,
   nivel_estudio: "primaria" as NivelEstudio,
   disponibilidad_laboral: "solo_local" as DisponibilidadLaboral,
@@ -117,7 +117,7 @@ export function toPersona(form: Form): IPersona {
     id: form.intakeId,
     ...splitName(form.name, form.lastNames),
     estado_cedula: form.idStatus ? ESTADO_CEDULA[form.idStatus] : SIN_DATO.estado_cedula,
-    numero_cedula: form.idNumber ?? null,
+    numero_cedula: form.idNumber ?? SIN_DATO.numero_cedula,
     fecha_nacimiento: form.birthDate ? new Date(`${form.birthDate}T00:00:00Z`) : SIN_DATO.fecha_nacimiento,
     telefono: form.phone ?? null,
     pertenece_refugio: form.housing === "shelter",

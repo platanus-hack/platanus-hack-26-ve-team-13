@@ -184,6 +184,7 @@ export default function DemoPage() {
       });
       if (!r.ok) throw new Error(`assess ${r.status}`);
       const data = await r.json();
+      console.info("[demo] assess", { persisted: data.persisted, intakeId: data.intakeId, formErrors: data.formErrors });
       if (run !== runRef.current) return;
       setAssessment(data.assessment);
       setStatus("done");
